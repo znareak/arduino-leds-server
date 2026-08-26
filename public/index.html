@@ -599,6 +599,11 @@
         const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
         let ws = null;
         let carroOnline = false;
+        let arduinoOnline = false;
+        let sensoresOnline = false;
+        let lastSensorsTs = 0;
+        let lastAnyMsg = 0;
+        let stallCount = 0;
         let wsConnected = false;
         let deliveryTimer = null;
         const KEY_DELAY = 300; // ms entre cada tecla enviada
@@ -615,6 +620,7 @@
                 setSideLed(sideLedCarro, data.carroOnline);
             }
             if (data.arduinoOnline !== undefined) {
+                arduinoOnline = data.arduinoOnline;
                 infoArduino.textContent = data.arduinoOnline ? 'Conectado' : 'Offline';
                 infoArduino.className = data.arduinoOnline ? 'text-[#4ade80]' : 'text-[#f87171]';
                 setSideLed(sideLedArduino, data.arduinoOnline);
@@ -623,6 +629,7 @@
                 infoFrontends.textContent = data.frontendsOnline;
             }
             if (data.sensoresOnline !== undefined) {
+                sensoresOnline = data.sensoresOnline;
                 setSideLed(sideLedSensores, data.sensoresOnline);
                 if (!data.sensoresOnline) {
                     sensorStatus.textContent = 'SIN DATOS';
@@ -674,9 +681,40 @@
 
         let sensorFrames = 0;
         let lastSensorLog = 0;
+        let sensorPending = null; // último estado recibido (se pinta una vez por frame)
+        let sensorRaf = 0;
+
         function updateSensores(canales, live) {
             if (!Array.isArray(canales)) return;
             const now = Date.now();
+            if (live) {
+                sensoresOnline = true;
+                lastSensorsTs = now;
+                sensorFrames++;
+                setSideLed(sideLedSensores, true);
+                if (now - lastSensorLog > 2000) {
+                    lastSensorLog = now;
+                    const vals = canales.map((c) => (typeof c === 'number' ? c : c?.valor ?? '--')).join(', ');
+                    terminalLog(`📊 Sensores [${vals}]`, 'text-[#4ade80]');
+                }
+            }
+            // Guarda el último estado y pinta como mucho una vez por frame (60 fps),
+            // aunque lleguen miles de eventos por segundo (el FPGA envía a gran velocidad)
+            sensorPending = canales;
+            if (!sensorRaf) sensorRaf = requestAnimationFrame(renderSensores);
+        }
+
+        function renderSensores() {
+            sensorRaf = 0;
+            const canales = sensorPending;
+            if (!canales) return;
+            sensorPending = null;
+
+            if (sensoresOnline) {
+                sensorStatus.textContent = `LIVE · ${sensorFrames} tramas`;
+                sensorStatus.className = 'font-label text-label text-[#4ade80]';
+            }
+
             canales.forEach((c, i) => {
                 if (i >= sensorEls.length || c === undefined || c === null) return;
                 const valor = typeof c === 'number' ? c : c.valor;
@@ -690,19 +728,11 @@
                 sensorEls[i].pct.textContent = `${Math.round(pct)}%`;
                 sensorEls[i].bar.style.width = `${pct}%`;
                 sensorEls[i].card.classList.add('sensor-fresh');
-                setTimeout(() => sensorEls[i].card.classList.remove('sensor-fresh'), 400);
+                clearTimeout(sensorEls[i].freshTimer);
+                sensorEls[i].freshTimer = setTimeout(
+                    () => sensorEls[i].card.classList.remove('sensor-fresh'), 300
+                );
             });
-            if (live) {
-                sensorFrames++;
-                sensorStatus.textContent = `LIVE · ${sensorFrames} tramas`;
-                sensorStatus.className = 'font-label text-label text-[#4ade80]';
-                setSideLed(sideLedSensores, true);
-                if (now - lastSensorLog > 2000) {
-                    lastSensorLog = now;
-                    const vals = canales.map((c) => (typeof c === 'number' ? c : c?.valor ?? '--')).join(', ');
-                    terminalLog(`📊 Sensores [${vals}]`, 'text-[#4ade80]');
-                }
-            }
         }
 
         // --- Terminal ---
@@ -863,6 +893,7 @@
             };
 
             ws.onmessage = (event) => {
+                lastAnyMsg = Date.now();
                 // Frame binario: imagen JPEG del carro → pintar en <img>
                 if (event.data instanceof ArrayBuffer) {
                     frameCount++;
@@ -923,9 +954,13 @@
                     terminalLog('🚗 Carro desconectado', 'text-[#f87171]');
                     showCamPlaceholder('Carro no conectado');
                 } else if (msg.event === 'arduino_connected') {
+                    arduinoOnline = true;
                     terminalLog('🤖 Arduino conectado', 'text-[#4ade80]');
                 } else if (msg.event === 'arduino_disconnected') {
                     terminalLog('🔌 Arduino desconectado', 'text-[#f87171]');
+                    arduinoOnline = false;
+                    sensoresOnline = false;
+                    lastSensorsTs = 0;
                     sensorStatus.textContent = 'SIN DATOS';
                     sensorStatus.className = 'font-label text-label text-outline';
                     setSideLed(sideLedSensores, false);
@@ -1117,6 +1152,34 @@
                 sendKey(key);
             });
             keyEl.addEventListener('touchend', () => keyEl.classList.remove('is-active'));
+        });
+
+        // --- Watchdog: si el Arduino está online pero no llega NINGÚN mensaje
+        //     del servidor, la conexión está muerta → reconectar; si ni así
+        //     revive, recargar la página (nunca quedar congelada) ---
+        setInterval(() => {
+            const limite = arduinoOnline ? 15000 : 45000; // server_info llega cada 30s
+            if (wsConnected && lastAnyMsg > 0 && Date.now() - lastAnyMsg > limite) {
+                stallCount++;
+                terminalLog(`⚠️ Sin mensajes del servidor en ${Math.round(limite / 1000)}s — reconexión (intento ${stallCount})...`, 'text-[#fbbf24]');
+                if (stallCount >= 3) {
+                    terminalLog('🔄 Conexión muerta — recargando página...', 'text-[#f87171]');
+                    location.reload();
+                    return;
+                }
+                if (ws) ws.close(); // onclose lanza la reconexión automática
+            } else if (lastAnyMsg > 0 && Date.now() - lastAnyMsg <= limite) {
+                stallCount = 0;
+            }
+        }, 5000);
+
+        // Al volver a la pestaña, si la conexión quedó obsoleta, reconectar
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && wsConnected
+                && lastAnyMsg > 0 && Date.now() - lastAnyMsg > 15000) {
+                terminalLog('⚠️ Conexión obsoleta tras volver a la pestaña — reconectando...', 'text-[#fbbf24]');
+                if (ws) ws.close();
+            }
         });
 
         // --- Init ---

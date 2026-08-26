@@ -72,6 +72,7 @@ const canales = Array.from({ length: NUM_CANALES }, () => ({
   actualizado: 0,
 }));
 let sensoresActivos = false; // true cuando llega al menos una lectura válida
+let lastArduinoFrame = 0; // timestamp de la última trama recibida del Arduino
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -115,7 +116,11 @@ function sendToArduino(data: string): boolean {
 function broadcastToFrontends(data: string): void {
   for (const ws of frontendClients) {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(data);
+      try {
+        ws.send(data);
+      } catch {
+        // cliente murió a mitad de envío: se eliminará en su evento close
+      }
     }
   }
 }
@@ -124,7 +129,11 @@ function broadcastToFrontends(data: string): void {
 function broadcastBinaryToFrontends(data: Buffer): void {
   for (const ws of frontendClients) {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(data);
+      try {
+        ws.send(data);
+      } catch {
+        // cliente murió a mitad de envío: se eliminará en su evento close
+      }
     }
   }
 }
@@ -145,7 +154,13 @@ function setCanal(idx: number, valor: number): void {
   canales[idx].actualizado = Date.now();
 }
 
+let lastSensoresBroadcast = 0;
+const SENSORES_BROADCAST_MS = 50; // máx. ~20 broadcast/s (el FPGA envía miles de tramas/s)
+
 function broadcastSensores(): void {
+  const now = Date.now();
+  if (now - lastSensoresBroadcast < SENSORES_BROADCAST_MS) return;
+  lastSensoresBroadcast = now;
   broadcastToFrontends(
     JSON.stringify({
       event: "sensores",
@@ -246,6 +261,7 @@ wss.on("connection", (ws: WebSocket, req) => {
     // Sensores: trama binaria de 2 bytes del Arduino (mismo formato del script serial:
     // b1 = 1cccxxxxx, b2 = 0yyyyy → canal = bits 6-5, valor = xxxxxyyyyy)
     if (isBinary && clientType === "arduino") {
+      lastArduinoFrame = Date.now();
       const buf = raw as Buffer;
       for (let i = 0; i + 1 < buf.length; i += 2) {
         const b1 = buf[i];
@@ -290,6 +306,7 @@ wss.on("connection", (ws: WebSocket, req) => {
       if (text === "arduino") {
         registered = true;
         clientType = "arduino";
+        lastArduinoFrame = Date.now();
         if (arduinoWs && arduinoWs !== ws) {
           arduinoWs.close();
         }
@@ -342,6 +359,7 @@ wss.on("connection", (ws: WebSocket, req) => {
     // Arduino → Backend: si es una lectura de sensores, actualizar el estado;
     // además, reenviar el mensaje crudo a los frontends (para el log)
     if (clientType === "arduino") {
+      lastArduinoFrame = Date.now();
       console.log(`📥 Arduino: ${text}`);
       const parsed = parseSensores(text);
       if (parsed) {
@@ -410,6 +428,7 @@ wss.on("connection", (ws: WebSocket, req) => {
     } else if (ws === arduinoWs) {
       arduinoWs = null;
       sensoresActivos = false;
+      lastArduinoFrame = 0;
       console.log("🔌 Arduino desconectado");
       broadcastToFrontends(JSON.stringify({ event: "arduino_disconnected" }));
       broadcastServerInfo();
@@ -442,6 +461,21 @@ setInterval(() => {
     }
   }
 }, 30000);
+
+// Heartbeat de estado a los frontends cada 30s: permite a la web detectar
+// conexiones muertas aunque no haya tráfico de sensores
+setInterval(() => {
+  broadcastServerInfo();
+}, 30000);
+
+// Watchdog: si el Arduino deja de enviar tramas, marcar sensores como inactivos
+setInterval(() => {
+  if (sensoresActivos && Date.now() - lastArduinoFrame > 10000) {
+    sensoresActivos = false;
+    console.log("⏱️ Sin tramas del Arduino en 10s → sensores marcados como inactivos");
+    broadcastServerInfo();
+  }
+}, 5000);
 
 // ---------------------------------------------------------------------------
 // Arranque

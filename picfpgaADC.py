@@ -36,6 +36,7 @@ WS_URL = "wss://arduino.libardo-apps.es"  # Producción: "wss://arduino.libardo-
 MODO_ENVIO = "binario"
 
 REINTENTO_WS = 3  # segundos entre reintentos de conexión al WS
+PING_INTERVALO = 15  # segundos entre pings de keepalive (evita timeouts de proxy)
 
 canales = [0, 0, 0, 0]
 
@@ -54,7 +55,12 @@ def encolar_mensaje(msg):
 
 
 def hilo_websocket():
-    """Mantiene la conexión WS: envía las tramas encoladas y recibe comandos."""
+    """Mantiene la conexión WS: envía las tramas encoladas y recibe comandos.
+
+    La recepción (recv) va en un hilo aparte, así el envío de tramas nunca se
+    bloquea ni caduca por timeout, y el cierre por parte del servidor se
+    detecta al instante para reconectar.
+    """
     global ser
     while True:
         ws = None
@@ -62,37 +68,64 @@ def hilo_websocket():
             ws = websocket.WebSocket()
             ws.connect(WS_URL, timeout=10)
             ws.send("arduino")   # registro obligatorio del protocolo
-            ws.settimeout(0.02)  # recv sin bloqueos largos → mínima latencia
-            # Desactiva Nagle: evita ~40 ms extra por paquete TCP pequeño
+            # Rehidrata el servidor con el estado actual tras cada reconexión
+            # (la web muestra los valores al instante, sin esperar la trama del canal 3)
+            try:
+                ws.send(json.dumps({"canales": canales}, separators=(",", ":")))
+            except Exception:
+                pass
+            # Bloqueante: los send no caducan por timeout (recv va en otro hilo)
+            ws.settimeout(None)
+            # Nagle off (latencia) + keepalive TCP (detectar caídas)
             try:
                 ws.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                ws.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
             except Exception:
                 pass
             print(f"[WS] Conectado a {WS_URL} y registrado como 'arduino'")
 
-            while True:
-                # 1) Enviar la trama en cuanto se encola
-                #    (espera máx. 50 ms → sin ráfagas ni latencia acumulada)
+            cerrado = threading.Event()
+            ultimo_ping = time.monotonic()
+
+            def lector():
+                """Recibe comandos del frontend; avisa si el servidor cierra."""
+                try:
+                    while not cerrado.is_set():
+                        cmd = ws.recv()  # bloqueante; auto-responde los pings
+                        if not cmd:
+                            break       # el servidor cerró la conexión
+                        print(f"[WS] Comando del frontend: {cmd}")
+                        if ser is not None:
+                            ser.write(cmd.encode("ascii"))
+                except Exception:
+                    pass
+                finally:
+                    cerrado.set()
+                    try:
+                        ws.shutdown()  # interrumpe el envío del hilo principal
+                    except Exception:
+                        try:
+                            ws.sock.shutdown(socket.SHUT_RDWR)
+                        except Exception:
+                            pass
+
+            threading.Thread(target=lector, daemon=True).start()
+
+            while not cerrado.is_set():
                 try:
                     msg = cola_ws.get(timeout=0.05)
                     if isinstance(msg, bytes):
                         ws.send(msg, websocket.ABNF.OPCODE_BINARY)
                     else:
                         ws.send(msg)
-                    continue
                 except queue.Empty:
-                    pass
-
-                # 2) Recibir comandos del frontend sin bloquear
-                #    (timeout de 20 ms → no retrasa el envío de datos)
-                try:
-                    cmd = ws.recv()
-                    if cmd:
-                        print(f"[WS] Comando del frontend: {cmd}")
-                        if ser is not None:
-                            ser.write(cmd.encode("ascii"))  # reenviar por serie
-                except websocket.WebSocketTimeoutException:
-                    pass
+                    # Sin datos pendientes: ping de keepalive periódico
+                    if time.monotonic() - ultimo_ping > PING_INTERVALO:
+                        ultimo_ping = time.monotonic()
+                        ws.ping()
+                except Exception:
+                    cerrado.set()
+                    raise
         except Exception as e:
             print(f"[WS] Desconectado ({e}). Reintentando en {REINTENTO_WS}s...")
         finally:
