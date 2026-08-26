@@ -23,7 +23,9 @@ frontend.on("message", (d) => {
     if (m.event === "sensores") {
       console.log(`[FE] evento sensores #${++frames}: ${m.canales.map((c) => c.valor).join(",")}`);
     } else if (m.event === "registered" || m.event === "server_info") {
-      console.log(`[FE] ${m.event}: arduinoOnline=${m.arduinoOnline} sensoresOnline=${m.sensoresOnline} sensores=${m.sensores.map((c) => c.valor).join(",")}`);
+      console.log(
+        `[FE] ${m.event}: arduinoOnline=${m.arduinoOnline} sensoresOnline=${m.sensoresOnline} sensores=${m.sensores.map((c) => c.valor).join(",")}`,
+      );
     } else {
       console.log(`[FE] ${m.event}`);
     }
@@ -42,7 +44,7 @@ arduino.on("open", () => {
   // Tramas binarias cada 5 ms (≈200/s, como la FPGA real a alta velocidad)
   setInterval(() => {
     t = (t + 137) % 1024;
-    const ch = (Math.floor(t / 250)) % 4;
+    const ch = Math.floor(t / 250) % 4;
     const b1 = 0x80 | (ch << 5) | ((t >> 5) & 0x1f);
     const b2 = t & 0x1f;
     arduino.send(Buffer.from([b1, b2]));
@@ -53,6 +55,8 @@ arduino.on("close", () => console.log("[AR] cerrado"));
 arduino.on("error", (e) => console.log("[AR] error:", e.message));
 
 setTimeout(() => {
-  console.log(`\n--- Resultado: el frontend recibió ${frames} eventos 'sensores' en ${dur / 1000}s ---`);
+  console.log(
+    `\n--- Resultado: el frontend recibió ${frames} eventos 'sensores' en ${dur / 1000}s ---`,
+  );
   process.exit(frames > 0 ? 0 : 1);
 }, dur);

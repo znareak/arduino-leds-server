@@ -74,6 +74,10 @@ const canales = Array.from({ length: NUM_CANALES }, () => ({
 let sensoresActivos = false; // true cuando llega al menos una lectura válida
 let lastArduinoFrame = 0; // timestamp de la última trama recibida del Arduino
 
+// Generador de ondas: 1 byte hacia la FPGA → (onda << 6) | frecuencia
+// onda: 0-3 (2 bits), frecuencia: 0-63 (6 bits)
+const generador = { onda: 0, frecuencia: 0, actualizado: 0 };
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -94,6 +98,7 @@ function getServerInfo() {
       actualizado: c.actualizado,
     })),
     frontendsOnline: frontendClients.size,
+    generador: { onda: generador.onda, frecuencia: generador.frecuencia },
   });
 }
 
@@ -312,6 +317,12 @@ wss.on("connection", (ws: WebSocket, req) => {
         }
         arduinoWs = ws;
         console.log(`🤖 Arduino conectado`);
+        // Reaplica el estado del generador si ya se había configurado
+        if (generador.actualizado > 0) {
+          arduinoWs.send(
+            JSON.stringify({ cmd: "onda", onda: generador.onda, frecuencia: generador.frecuencia }),
+          );
+        }
         broadcastToFrontends(JSON.stringify({ event: "arduino_connected" }));
         broadcastServerInfo();
         return;
@@ -338,6 +349,7 @@ wss.on("connection", (ws: WebSocket, req) => {
             url: PUBLIC_URL,
             wsUrl: WS_URL,
             port: PORT,
+            generador: { onda: generador.onda, frecuencia: generador.frecuencia },
           }),
         );
         broadcastServerInfo();
@@ -385,9 +397,31 @@ wss.on("connection", (ws: WebSocket, req) => {
 
     // Frontend → comandos
     if (clientType === "frontend") {
-      // ¿JSON con comando para el carro?
       try {
         const json = JSON.parse(text);
+
+        // ¿Comando para el generador de ondas?
+        if (json.cmd === "onda") {
+          const onda = Number.isFinite(json.onda)
+            ? Math.max(0, Math.min(3, Math.round(json.onda)))
+            : generador.onda;
+          const frecuencia = Number.isFinite(json.frecuencia)
+            ? Math.max(0, Math.min(63, Math.round(json.frecuencia)))
+            : generador.frecuencia;
+          generador.onda = onda;
+          generador.frecuencia = frecuencia;
+          generador.actualizado = Date.now();
+          console.log(`🌊 Frontend → Generador: onda=${onda} frecuencia=${frecuencia}`);
+          const enviado = sendToArduino(JSON.stringify({ cmd: "onda", onda, frecuencia }));
+          // Sincroniza a todas las webs y a la GUI de escritorio (viceversa)
+          broadcastToFrontends(
+            JSON.stringify({ event: "generador", onda, frecuencia, delivered: enviado }),
+          );
+          ws.send(JSON.stringify({ event: "sent_cmd", data: "onda", delivered: enviado }));
+          return;
+        }
+
+        // ¿JSON con comando para el carro?
         if (json.cmd || json.var) {
           console.log(`📤 Frontend → Carro: ${text}`);
           const enviado = sendToCarro(text);

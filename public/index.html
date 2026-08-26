@@ -10,6 +10,8 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <!-- Motion (animaciones) -->
 <script src="https://cdn.jsdelivr.net/npm/motion@11.11.17/dist/motion.min.js"></script>
+<!-- ECharts (gráfica del generador de ondas) -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
 <!-- Tailwind Theme Config -->
 <script id="tailwind-config">
     tailwind.config = {
@@ -171,6 +173,31 @@
     .car-stop { background: #3a1010; }
     .car-stop:hover { background: #4a1515; }
 
+    /* Botones del generador de ondas */
+    .gen-wave {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 14px 8px;
+        border-radius: 8px;
+        background: #1A1A1A;
+        border: 1px solid rgba(255,255,255,0.12);
+        color: #D1D1D1;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.08s;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    .gen-wave:hover { background: #252525; }
+    .gen-wave.is-active {
+        background: #333333;
+        border-color: #ffffff;
+        box-shadow: 0 0 12px rgba(255,255,255,0.25);
+    }
+
     /* Navegación lateral (sidebar) */
     .nav-item {
         display: flex;
@@ -277,6 +304,10 @@
         <button class="nav-item" data-view="sensores" id="nav-sensores">
             <span class="material-symbols-outlined">monitoring</span>
             <span>Sensores</span>
+        </button>
+        <button class="nav-item" data-view="generador" id="nav-generador">
+            <span class="material-symbols-outlined">graphic_eq</span>
+            <span>Generador</span>
         </button>
     </nav>
 
@@ -517,6 +548,67 @@
             </div>
         </div>
 
+        <!-- ============ VISTA: GENERADOR DE ONDAS ============ -->
+        <div id="view-generador" class="view hidden w-full max-w-4xl px-md">
+            <div class="w-full">
+                <div class="flex items-center justify-between mb-md">
+                    <div class="flex items-center gap-sm">
+                        <span class="material-symbols-outlined text-outline text-[16px]">graphic_eq</span>
+                        <h2 class="font-title text-title text-primary">Generador de Ondas</h2>
+                    </div>
+                    <span class="font-label text-label text-outline" id="gen-status">SIN CONEXIÓN</span>
+                </div>
+                <div class="flex flex-col gap-lg">
+                    <div>
+                        <div class="font-label text-label text-outline uppercase tracking-wider mb-sm">Tipo de onda</div>
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-md">
+                            <button class="gen-wave is-active" data-onda="0"><span class="material-symbols-outlined">view_timeline</span>Cuadrada</button>
+                            <button class="gen-wave" data-onda="1"><span class="material-symbols-outlined">show_chart</span>Triangular</button>
+                            <button class="gen-wave" data-onda="2"><span class="material-symbols-outlined">trending_up</span>Sierra</button>
+                            <button class="gen-wave" data-onda="3"><span class="material-symbols-outlined">multiline_chart</span>Senoidal</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-sm">
+                            <span class="font-label text-label text-outline uppercase tracking-wider">Frecuencia</span>
+                            <span class="font-data-lg text-data-lg text-primary" id="gen-freq">0</span>
+                        </div>
+                        <input type="range" id="gen-freq-slider" min="0" max="63" step="1" value="0" class="w-full accent-white">
+                    </div>
+                    <div class="flex items-center justify-center gap-sm font-data-sm text-data-sm text-outline/80 text-center">
+                        <span class="material-symbols-outlined text-[13px]">info</span>
+                        <span>Envía 1 byte a la FPGA: <span class="text-on-surface-variant">(onda &lt;&lt; 6) | frecuencia</span> · 2 bits de onda + 6 bits de frecuencia.</span>
+                    </div>
+                    <!-- Previsualización de la onda (estilo portfolio) -->
+                    <div class="border border-outline-variant rounded-xl bg-surface/80 backdrop-blur-sm shadow-sm overflow-hidden flex flex-col">
+                        <div class="flex items-center justify-between px-lg py-sm border-b border-outline-variant/30">
+                            <span class="font-title text-title text-primary">Generador de Ondas</span>
+
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-lg px-lg pt-md">
+                            <div class="flex flex-col gap-1">
+                                <div class="flex items-center gap-2 font-label text-label text-outline">
+                                    <span class="w-3 h-3 rounded-full border-2" style="border-color:#c3f000"></span>
+                                    Frecuencia
+                                </div>
+                                <div class="font-headline text-headline text-primary" id="gen-freq-display">0</div>
+                                <div class="font-data-sm text-data-sm text-emerald-500" id="gen-byte">0b00000000</div>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <div class="flex items-center gap-2 font-label text-label text-outline">
+                                    <span class="w-3 h-3 rounded-full border-2" id="gen-wave-dot" style="border-color:#c3f000"></span>
+                                    Onda
+                                </div>
+                                <div class="font-headline text-headline text-primary" id="gen-wave-name">Cuadrada</div>
+                                <div class="font-data-sm text-data-sm text-emerald-500">+1.00 / −1.00</div>
+                            </div>
+                        </div>
+                        <div id="gen-chart" class="w-full h-56 mt-md px-sm pb-sm"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Delivery feedback -->
         <div class="flex items-center gap-sm px-md py-xs bg-surface-variant/20 rounded-full border border-outline-variant/20 opacity-0 transition-opacity duration-200" id="delivery-badge">
             <span class="material-symbols-outlined text-[14px] text-[#4ade80]" id="delivery-icon">check_circle</span>
@@ -551,6 +643,18 @@
         const sideLedCarro = document.getElementById('side-led-carro');
         const sideLedArduino = document.getElementById('side-led-arduino');
         const sideLedSensores = document.getElementById('side-led-sensores');
+
+        // Generador de ondas
+        const genStatus = document.getElementById('gen-status');
+        const genFreq = document.getElementById('gen-freq');
+        const genSlider = document.getElementById('gen-freq-slider');
+        const genWaveBtns = document.querySelectorAll('.gen-wave');
+        const genChartEl = document.getElementById('gen-chart');
+        const genWaveName = document.getElementById('gen-wave-name');
+        const genWaveDot = document.getElementById('gen-wave-dot');
+        const genFreqDisplay = document.getElementById('gen-freq-display');
+        const genByte = document.getElementById('gen-byte');
+        let genChart = null;
 
         // Teclas especiales que NO se envían al Arduino (solo visuales)
         const SKIP_KEYS = ['caps', 'shift', 'enter', 'backspace', ' '];
@@ -637,6 +741,7 @@
                 }
             }
             if (data.sensores) updateSensores(data.sensores, false);
+            if (data.generador) setGeneradorUI(data.generador.onda, data.generador.frecuencia);
         }
 
         // --- Sensores: tarjetas de los 4 canales ---
@@ -733,6 +838,111 @@
                     () => sensorEls[i].card.classList.remove('sensor-fresh'), 300
                 );
             });
+        }
+
+        // --- Generador de ondas ---
+        function setGeneradorUI(onda, frecuencia) {
+            if (!Number.isFinite(onda) || !Number.isFinite(frecuencia)) return;
+            onda = Math.max(0, Math.min(3, Math.round(onda)));
+            frecuencia = Math.max(0, Math.min(63, Math.round(frecuencia)));
+            genWaveBtns.forEach(b => {
+                b.classList.toggle('is-active', parseInt(b.dataset.onda, 10) === onda);
+            });
+            // No pisa el slider si el usuario lo está arrastrando
+            if (!genDragging) {
+                genSlider.value = frecuencia;
+                genFreq.textContent = frecuencia;
+            }
+            renderGenChart();
+        }
+
+        function sendGenerador(onda, frecuencia) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                terminalLog('WS no conectado — no se puede enviar', 'text-[#f87171]');
+                return;
+            }
+            ws.send(JSON.stringify({ cmd: 'onda', onda, frecuencia }));
+        }
+
+        // --- Gráfica del generador (previsualización en tiempo real) ---
+        const GEN_WAVE_NAMES = ['Cuadrada', 'Triangular', 'Sierra', 'Senoidal'];
+        const GEN_WAVE_COLORS = ['#c3f000', '#4c86ff', '#fb923c', '#a78bfa']; // color por tipo de onda
+
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        function renderGenChart() {
+            if (!genChart || typeof echarts === 'undefined') return;
+            const onda = genOndaActual();
+            const frecuencia = parseInt(genSlider.value, 10) || 0;
+            const byte = (onda << 6) | frecuencia;
+            const color = GEN_WAVE_COLORS[onda] || GEN_WAVE_COLORS[0];
+
+            if (genWaveName) genWaveName.textContent = GEN_WAVE_NAMES[onda];
+            if (genWaveDot) genWaveDot.style.borderColor = color;
+            if (genFreqDisplay) genFreqDisplay.textContent = frecuencia;
+            if (genByte) genByte.textContent = '0b' + byte.toString(2).padStart(8, '0');
+
+            // Muestras de 2 periodos de la onda seleccionada
+            const n = 160;
+            const samples = [];
+            for (let i = 0; i <= n; i++) {
+                const fase = ((i / n) * 2) % 1;
+                let v;
+                if (onda === 0) v = fase < 0.5 ? 1 : -1;              // cuadrada
+                else if (onda === 1) v = 1 - 4 * Math.abs(fase - 0.5); // triangular
+                else if (onda === 2) v = fase * 2 - 1;                 // sierra
+                else v = Math.sin(fase * Math.PI * 2);                 // senoidal
+                samples.push([i, v]);
+            }
+
+            genChart.setOption({
+                animation: false,
+                backgroundColor: 'transparent',
+                grid: { left: 8, right: 8, top: 16, bottom: 8 },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(19,19,19,0.72)',
+                    borderColor: '#444748',
+                    borderWidth: 1,
+                    textStyle: { color: '#e5e2e1', fontSize: 11 },
+                    axisPointer: { lineStyle: { color: hexToRgba(color, 0.5), type: 'dashed' } },
+                    extraCssText: 'backdrop-filter: blur(8px); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);',
+                    formatter: (params) => {
+                        const p = params && params[0];
+                        return p ? `${GEN_WAVE_NAMES[onda]}<br/>${p.data[1].toFixed(3)}` : '';
+                    },
+                },
+                xAxis: { type: 'value', show: false, min: 0, max: n },
+                yAxis: {
+                    type: 'value',
+                    show: false,
+                    min: -1.25,
+                    max: 1.25,
+                    // Rejilla punteada tenue, como en el diseño de referencia
+                    splitLine: { show: true, lineStyle: { type: 'dotted', color: 'rgba(142,145,146,0.20)' } },
+                },
+                series: [{
+                    type: 'line',
+                    data: samples,
+                    showSymbol: false,
+                    symbol: 'none',
+                    step: onda === 0 ? 'end' : false,
+                    smooth: onda === 3 ? 0.15 : (onda === 1 ? 0.05 : 0),
+                    lineStyle: { width: 2, color },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: hexToRgba(color, 0.28) },
+                            { offset: 1, color: hexToRgba(color, 0.00) },
+                        ]),
+                    },
+                    emphasis: { focus: 'series' },
+                }],
+            }, { notMerge: true });
         }
 
         // --- Terminal ---
@@ -967,10 +1177,22 @@
                 } else if (msg.event === 'arduino_msg') {
                     terminalLog(`📥 Arduino: ${msg.data}`, 'text-[#c7c6c6]');
                 } else if (msg.event === 'sent_cmd') {
+                    if (msg.data === 'onda') {
+                        genStatus.textContent = msg.delivered ? 'ENVIADO ✓' : 'ARDUINO OFFLINE ❌';
+                        genStatus.className = msg.delivered
+                            ? 'font-label text-label text-[#4ade80]'
+                            : 'font-label text-label text-[#f87171]';
+                    }
                     terminalLog(
                         `🚗 ${msg.delivered ? '✅' : '❌'} "${msg.data}"`,
                         msg.delivered ? 'text-[#4ade80]' : 'text-[#f87171]',
                     );
+                } else if (msg.event === 'generador') {
+                    setGeneradorUI(msg.onda, msg.frecuencia);
+                    genStatus.textContent = msg.delivered ? 'ENVIADO ✓' : 'ARDUINO OFFLINE ❌';
+                    genStatus.className = msg.delivered
+                        ? 'font-label text-label text-[#4ade80]'
+                        : 'font-label text-label text-[#f87171]';
                 } else if (msg.event === 'server_info') {
                     updateServerInfo(msg);
                 } else if (msg.event === 'sensores') {
@@ -1009,6 +1231,7 @@
             carro: document.getElementById('view-carro'),
             arduino: document.getElementById('view-arduino'),
             sensores: document.getElementById('view-sensores'),
+            generador: document.getElementById('view-generador'),
         };
         function switchView(view) {
             if (!viewEls[view]) return; // click no válido
@@ -1021,7 +1244,12 @@
                 el.classList.toggle('hidden', name !== view);
             });
             // El panel de tecla pulsada solo tiene sentido en Carro/Arduino
-            keyPanel.classList.toggle('hidden', view === 'sensores');
+            keyPanel.classList.toggle('hidden', view === 'sensores' || view === 'generador');
+            // La gráfica ECharts necesita redimensionarse al hacerse visible
+            if (view === 'generador' && genChart) {
+                genChart.resize();
+                renderGenChart();
+            }
             // Animación de entrada de la vista activa
             Motion.animate(viewEls[view], { opacity: [0, 1], y: [14, 0] }, { duration: 0.3, easing: [0.2, 0.65, 0.4, 1] });
         }
@@ -1036,8 +1264,8 @@
 
             const key = e.key;
 
-            // En la vista Sensores el teclado físico no envía nada
-            if (activeView === 'sensores') return;
+            // En las vistas Sensores y Generador el teclado físico no envía nada
+            if (activeView === 'sensores' || activeView === 'generador') return;
 
             // En la vista Carro: flechas controlan el carro
             if (activeView === 'carro') {
@@ -1113,6 +1341,34 @@
             sliderTimer = setTimeout(() => sendCarCmd('luz', parseInt(lightSlider.value)), 150);
         });
 
+        // --- Generador: botones de onda y slider de frecuencia ---
+        let genSendTimer = null;
+        let genDragging = false;
+        const genOndaActual = () => parseInt(document.querySelector('.gen-wave.is-active')?.dataset.onda ?? '0', 10);
+
+        genWaveBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const onda = parseInt(btn.dataset.onda, 10);
+                genWaveBtns.forEach(b => b.classList.toggle('is-active', b === btn));
+                clearTimeout(genSendTimer);
+                sendGenerador(onda, parseInt(genSlider.value, 10));
+                renderGenChart();
+            });
+        });
+        genSlider.addEventListener('input', () => {
+            genDragging = true;
+            genFreq.textContent = genSlider.value;
+            renderGenChart();
+            clearTimeout(genSendTimer);
+            // Trailing throttle de 60 ms: fluido al arrastrar, sin saturar el puente
+            genSendTimer = setTimeout(() => sendGenerador(genOndaActual(), parseInt(genSlider.value, 10)), 60);
+        });
+        genSlider.addEventListener('change', () => {
+            genDragging = false;
+            clearTimeout(genSendTimer);
+            sendGenerador(genOndaActual(), parseInt(genSlider.value, 10));
+        });
+
         // --- Carro: toggle de cámara ---
         videoToggle.addEventListener('click', (e) => {
             e.stopPropagation(); // no interferir con los tabs
@@ -1186,6 +1442,13 @@
         buildSensorCards();
         setConnectionStatus('disconnected');
         connectWS();
+
+        // --- Gráfica del generador (ECharts) ---
+        if (genChartEl && typeof echarts !== 'undefined') {
+            genChart = echarts.init(genChartEl);
+            renderGenChart();
+            window.addEventListener('resize', () => { if (genChart) genChart.resize(); });
+        }
 
         // --- Animación de entrada (stagger) ---
         Motion.animate('aside', { opacity: [0, 1], x: [-16, 0] }, { duration: 0.4, easing: [0.2, 0.65, 0.4, 1] });
