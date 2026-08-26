@@ -193,6 +193,69 @@ ws.onopen = () => ws.send("arduino");
 ws.onmessage = (e) => console.log("Recibido:", e.data);
 ```
 
+## 📊 Sensores — 4 canales ADC (potenciómetros)
+
+La web tiene una sección **Sensores** que muestra 4 canales (CH0–CH3) con su valor ADC (0–1023), voltaje (0–5 V) y barra de progreso.
+
+El servidor interpreta **automáticamente** estos formatos cuando el Arduino envía texto:
+
+| Formato                | Ejemplo                        | Efecto                             |
+| ---------------------- | ------------------------------ | ---------------------------------- |
+| JSON todos los canales | `{"canales":[512,300,10,800]}` | Actualiza CH0–CH3                  |
+| JSON array             | `[512,300,10,800]`             | Ídem                               |
+| JSON un canal          | `{"canal":0,"valor":512}`      | Actualiza solo CH0                 |
+| JSON por clave         | `{"ch0":512,"ch2":300}`        | Actualiza CH0 y CH2                |
+| Texto `C:x`            | `0:512` o `C0:512`             | Actualiza solo un canal            |
+| CSV                    | `512,300,10,800`               | Actualiza CH0–CH3 (mín. 2 valores) |
+
+También se acepta la **trama binaria de 2 bytes** (mismo formato del script serial de la FPGA):
+
+```
+Byte 1: 1cccxxxxx   (bit 7 = 1, bits 6-5 = canal, bits 4-0 = 5 bits altos)
+Byte 2: 0yyyyyxxxx? → 0yyyyy (bit 7 = 0, bits 4-0 = 5 bits bajos)
+valor = ((b1 & 0x1F) << 5) | (b2 & 0x1F)
+```
+
+### Ejemplo con Arduino (ESP32 con WiFi)
+
+```cpp
+#include <WiFi.h>
+#include <WebSocketsClient.h>
+
+WebSocketsClient ws;
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin("TU_WIFI", "TU_PASSWORD");
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+
+  ws.begin("192.168.1.50", 3000, "/");
+  ws.onEvent([](WStype_t type, uint8_t *payload, size_t len) {
+    if (type == WStype_CONNECTED) {
+      ws.sendTXT("arduino");            // registro obligatorio
+    }
+  });
+}
+
+void loop() {
+  ws.loop();
+
+  static unsigned long ultimo = 0;
+  if (millis() - ultimo >= 200) {       // enviar cada 200 ms
+    ultimo = millis();
+    int v0 = analogRead(34);            // potenciómetros en pines ADC
+    int v1 = analogRead(35);
+    int v2 = analogRead(32);
+    int v3 = analogRead(33);
+    char buf[64];
+    snprintf(buf, sizeof(buf), "{\"canales\":[%d,%d,%d,%d]}", v0, v1, v2, v3);
+    ws.sendTXT(buf);
+  }
+}
+```
+
+> ℹ️ Las lecturas se muestran en la vista **Sensores** del menú lateral. El valor ADC crudo (0–1023) se convierte a voltaje con `V = valor / 1023 × 5`.
+
 ## ⚠️ Notas importantes
 
 1. **Siempre enviar `arduino` como primer mensaje** tras conectarse, o el servidor cerrará la conexión a los 5 segundos.

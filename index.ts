@@ -61,6 +61,19 @@ let arduinoWs: WebSocket | null = null;
 const frontendClients = new Set<WebSocket>();
 
 // ---------------------------------------------------------------------------
+// Estado de los sensores: 4 canales ADC (0-1023 → 0-5V)
+// ---------------------------------------------------------------------------
+
+const NUM_CANALES = 4;
+const VREF = 5.0;
+const canales = Array.from({ length: NUM_CANALES }, () => ({
+  valor: 0,
+  voltaje: 0,
+  actualizado: 0,
+}));
+let sensoresActivos = false; // true cuando llega al menos una lectura válida
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -73,6 +86,12 @@ function getServerInfo() {
     carroOnline: carroWs !== null && carroWs.readyState === WebSocket.OPEN,
     carroNombre: carroNombre || null,
     arduinoOnline: arduinoWs !== null && arduinoWs.readyState === WebSocket.OPEN,
+    sensoresOnline: sensoresActivos,
+    sensores: canales.map((c) => ({
+      valor: c.valor,
+      voltaje: c.voltaje,
+      actualizado: c.actualizado,
+    })),
     frontendsOnline: frontendClients.size,
   });
 }
@@ -115,6 +134,92 @@ function broadcastServerInfo(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Sensores: estado + parseo de tramas que envía el Arduino
+// ---------------------------------------------------------------------------
+
+function setCanal(idx: number, valor: number): void {
+  if (!Number.isFinite(idx) || idx < 0 || idx >= NUM_CANALES || !Number.isFinite(valor)) return;
+  const v = Math.max(0, Math.min(1023, Math.round(valor)));
+  canales[idx].valor = v;
+  canales[idx].voltaje = Number(((v / 1023) * VREF).toFixed(3));
+  canales[idx].actualizado = Date.now();
+}
+
+function broadcastSensores(): void {
+  broadcastToFrontends(
+    JSON.stringify({
+      event: "sensores",
+      canales: canales.map((c) => ({
+        valor: c.valor,
+        voltaje: c.voltaje,
+        actualizado: c.actualizado,
+      })),
+    }),
+  );
+}
+
+/**
+ * Interpreta un mensaje de texto del Arduino como lectura de sensores.
+ * Formatos aceptados:
+ *   {"canales":[v0,v1,v2,v3]}   → actualiza todos los canales
+ *   [v0,v1,v2,v3]                → ídem (array JSON)
+ *   {"canal":0,"valor":512}      → actualiza un canal
+ *   {"ch0":512,"ch1":300,...}    → actualiza por clave ch0..ch3 / c0..c3
+ *   512,300,10,800               → CSV de valores (mínimo 2 números)
+ *   0:512  /  C0:512             → actualiza un canal
+ */
+function parseSensores(
+  text: string,
+): { canales?: number[]; canal?: number; valor?: number } | null {
+  const t = text.trim();
+  if (!t) return null;
+
+  // 1) JSON
+  try {
+    const json = JSON.parse(t);
+    if (Array.isArray(json)) {
+      const nums = json.map(Number);
+      if (nums.length > 0) return { canales: nums };
+    }
+    if (json && typeof json === "object") {
+      if (Array.isArray(json.canales)) {
+        return { canales: json.canales.map(Number) };
+      }
+      if (typeof json.canal === "number" && typeof json.valor === "number") {
+        return { canal: json.canal, valor: json.valor };
+      }
+      const claves = ["ch0", "ch1", "ch2", "ch3", "c0", "c1", "c2", "c3"];
+      const nums: (number | null)[] = [null, null, null, null];
+      let alguno = false;
+      claves.forEach((k, i) => {
+        if (typeof json[k] === "number") {
+          nums[i % 4] = json[k];
+          alguno = true;
+        }
+      });
+      if (alguno) return { canales: nums.map((n) => (n === null ? 0 : n)) };
+    }
+  } catch {
+    // no es JSON → probar formatos de texto
+  }
+
+  // 2) "0:512" / "C0:512" → un solo canal
+  const m = t.match(/^c?(\d):(\d+)$/i);
+  if (m) return { canal: parseInt(m[1], 10), valor: parseInt(m[2], 10) };
+
+  // 3) CSV: solo números separados por coma/espacio/punto y coma
+  if (/^[\d\s,;]+$/.test(t)) {
+    const nums = t
+      .split(/[\s,;]+/)
+      .filter((x) => x !== "")
+      .map(Number);
+    if (nums.length >= 2) return { canales: nums };
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Manejo de conexiones
 // ---------------------------------------------------------------------------
 
@@ -135,6 +240,24 @@ wss.on("connection", (ws: WebSocket, req) => {
         );
       }
       broadcastBinaryToFrontends(raw as Buffer);
+      return;
+    }
+
+    // Sensores: trama binaria de 2 bytes del Arduino (mismo formato del script serial:
+    // b1 = 1cccxxxxx, b2 = 0yyyyy → canal = bits 6-5, valor = xxxxxyyyyy)
+    if (isBinary && clientType === "arduino") {
+      const buf = raw as Buffer;
+      for (let i = 0; i + 1 < buf.length; i += 2) {
+        const b1 = buf[i];
+        const b2 = buf[i + 1];
+        if ((b1 & 0x80) !== 0 && (b2 & 0x80) === 0) {
+          const chId = (b1 >> 5) & 0x03;
+          const adcVal = ((b1 & 0x1f) << 5) | (b2 & 0x1f);
+          setCanal(chId, adcVal);
+          sensoresActivos = true;
+        }
+      }
+      broadcastSensores();
       return;
     }
 
@@ -189,6 +312,12 @@ wss.on("connection", (ws: WebSocket, req) => {
             carroOnline: carroWs !== null && carroWs.readyState === WebSocket.OPEN,
             carroNombre: carroNombre || null,
             arduinoOnline: arduinoWs !== null && arduinoWs.readyState === WebSocket.OPEN,
+            sensoresOnline: sensoresActivos,
+            sensores: canales.map((c) => ({
+              valor: c.valor,
+              voltaje: c.voltaje,
+              actualizado: c.actualizado,
+            })),
             url: PUBLIC_URL,
             wsUrl: WS_URL,
             port: PORT,
@@ -210,9 +339,20 @@ wss.on("connection", (ws: WebSocket, req) => {
 
     // --- Ya registrado: enrutar mensajes ---
 
-    // Arduino → Backend: reenviar mensaje crudo a frontends
+    // Arduino → Backend: si es una lectura de sensores, actualizar el estado;
+    // además, reenviar el mensaje crudo a los frontends (para el log)
     if (clientType === "arduino") {
       console.log(`📥 Arduino: ${text}`);
+      const parsed = parseSensores(text);
+      if (parsed) {
+        sensoresActivos = true;
+        if (parsed.canales) {
+          parsed.canales.forEach((v, i) => setCanal(i, v));
+        } else if (parsed.canal !== undefined && parsed.valor !== undefined) {
+          setCanal(parsed.canal, parsed.valor);
+        }
+        broadcastSensores();
+      }
       broadcastToFrontends(JSON.stringify({ event: "arduino_msg", data: text }));
       return;
     }
@@ -269,6 +409,7 @@ wss.on("connection", (ws: WebSocket, req) => {
       broadcastServerInfo();
     } else if (ws === arduinoWs) {
       arduinoWs = null;
+      sensoresActivos = false;
       console.log("🔌 Arduino desconectado");
       broadcastToFrontends(JSON.stringify({ event: "arduino_disconnected" }));
       broadcastServerInfo();
@@ -316,5 +457,6 @@ server.listen(PORT, () => {
   console.log("║   📋  Protocolo:                                 ║");
   console.log('║   1. Carro: {"tipo":"hola","nombre":"carro1"}    ║');
   console.log('║   2. Comandos: {"cmd":"adelante"}, etc.          ║');
+  console.log('║   3. Sensores: {"canales":[v0,v1,v2,v3]} / 0:512 ║');
   console.log("╚══════════════════════════════════════════════════╝");
 });

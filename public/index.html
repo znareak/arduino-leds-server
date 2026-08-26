@@ -171,27 +171,44 @@
     .car-stop { background: #3a1010; }
     .car-stop:hover { background: #4a1515; }
 
-    /* Tabs */
-    .tab-btn {
-        padding: 8px 22px;
-        border-radius: 9999px;
+    /* Navegación lateral (sidebar) */
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 8px;
         font-size: 13px;
         font-weight: 600;
-        color: #8e9192;
+        color: #c4c7c8;
         background: transparent;
         border: 1px solid transparent;
         cursor: pointer;
         transition: all 0.15s;
         user-select: none;
         -webkit-user-select: none;
+        text-align: left;
+        width: 100%;
     }
-    .tab-btn:hover { color: #c4c7c7; }
-    .tab-btn.tab-active {
+    .nav-item:hover { background: #1c1b1b; color: #ffffff; }
+    .nav-item.nav-active {
         background: #2a2a2a;
         color: #ffffff;
         border-color: rgba(255,255,255,0.15);
     }
-    .tab-content.hidden { display: none; }
+    .nav-item .material-symbols-outlined { font-size: 18px; }
+
+    /* Vistas (contenido principal según sección) */
+    .view { display: flex; }
+    .view.hidden { display: none; }
+
+    /* Tarjetas de sensores */
+    .sensor-card { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+    .sensor-card.sensor-fresh {
+        border-color: rgba(74, 222, 128, 0.6) !important;
+        box-shadow: 0 0 14px rgba(74, 222, 128, 0.18);
+    }
+    .sensor-bar-fill { transition: width 0.2s ease-out; }
 
     /* Toggle de cámara (estilo propio, NO es un tab) */
     .cam-toggle {
@@ -235,6 +252,50 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap">
 </head>
 <body class="bg-background text-on-surface h-screen w-screen overflow-hidden flex font-body-lg text-body-lg">
+
+<!-- Sidebar izquierdo: navegación -->
+<aside class="w-[220px] shrink-0 h-full flex flex-col border-r border-outline-variant/30 bg-surface-container-low/60">
+    <!-- Cabecera -->
+    <div class="px-lg py-md border-b border-outline-variant/30 flex items-center gap-sm">
+        <span class="material-symbols-outlined text-[20px] text-primary">sensors</span>
+        <div class="flex flex-col">
+            <span class="font-title text-title text-primary leading-none">Panel IoT</span>
+            <span class="font-label text-label text-outline mt-xs">Carro · Arduino · Sensores</span>
+        </div>
+    </div>
+
+    <!-- Menú -->
+    <nav class="flex-1 p-sm flex flex-col gap-1 overflow-y-auto">
+        <button class="nav-item nav-active" data-view="carro" id="nav-carro">
+            <span class="material-symbols-outlined">directions_car</span>
+            <span>Carro</span>
+        </button>
+        <button class="nav-item" data-view="arduino" id="nav-arduino">
+            <span class="material-symbols-outlined">keyboard</span>
+            <span>Arduino</span>
+        </button>
+        <button class="nav-item" data-view="sensores" id="nav-sensores">
+            <span class="material-symbols-outlined">monitoring</span>
+            <span>Sensores</span>
+        </button>
+    </nav>
+
+    <!-- Estado de dispositivos -->
+    <div class="p-md border-t border-outline-variant/30 flex flex-col gap-xs font-data-sm text-data-sm">
+        <div class="flex justify-between items-center">
+            <span class="text-outline">Carro</span>
+            <span class="w-2 h-2 rounded-full bg-[#f87171]" id="side-led-carro" title="Estado del carro"></span>
+        </div>
+        <div class="flex justify-between items-center">
+            <span class="text-outline">Arduino</span>
+            <span class="w-2 h-2 rounded-full bg-[#f87171]" id="side-led-arduino" title="Estado del Arduino"></span>
+        </div>
+        <div class="flex justify-between items-center">
+            <span class="text-outline">Sensores</span>
+            <span class="w-2 h-2 rounded-full bg-[#f87171]" id="side-led-sensores" title="Flujo de datos de sensores"></span>
+        </div>
+    </div>
+</aside>
 
 <!-- Main Content Wrapper -->
 <main class="flex-1 flex flex-col h-full relative">
@@ -322,22 +383,12 @@
             </div>
             <div class="flex items-center gap-sm mt-xl px-md py-xs bg-surface-variant/30 rounded-full border border-outline-variant/30">
                 <span class="material-symbols-outlined text-outline text-[14px]">keyboard</span>
-                <span class="font-label text-label text-on-surface-variant" id="key-hint">Elige Carro o Arduino</span>
+                <span class="font-label text-label text-on-surface-variant" id="key-hint">Elige Carro, Arduino o Sensores</span>
             </div>
         </div>
 
-        <!-- Tab Bar -->
-        <div class="flex gap-2 bg-surface-container-low/60" style="border-radius: 9999px;">
-            <button class="tab-btn tab-active" data-tab="carro" id="tab-btn-carro">
-                🚗 Carro
-            </button>
-            <button class="tab-btn" data-tab="arduino" id="tab-btn-arduino">
-                ⌨️ Arduino
-            </button>
-        </div>
-
-        <!-- ============ TAB: CARRO ============ -->
-        <div id="tab-carro" class="tab-content flex flex-col items-center gap-lg">
+        <!-- ============ VISTA: CARRO ============ -->
+        <div id="view-carro" class="view flex-col items-center gap-lg">
         <!-- Car Control Panel -->
         <div class="flex items-center gap-lg mt-md" id="car-panel">
             <!-- D-Pad -->
@@ -382,8 +433,8 @@
         </div>
         </div>
 
-        <!-- ============ TAB: ARDUINO ============ -->
-        <div id="tab-arduino" class="tab-content hidden flex-col items-center gap-lg">
+        <!-- ============ VISTA: ARDUINO ============ -->
+        <div id="view-arduino" class="view hidden flex-col items-center gap-lg">
         <!-- Teclado visual -->
         <div class="flex flex-col gap-[6px] items-center select-none mt-md" id="visual-keyboard">
             <!-- Row 1: Números -->
@@ -446,6 +497,26 @@
         </div>
         </div>
 
+        <!-- ============ VISTA: SENSORES ============ -->
+        <div id="view-sensores" class="view hidden w-full max-w-4xl px-md">
+            <div class="w-full">
+                <div class="flex items-center justify-between mb-md">
+                    <div class="flex items-center gap-sm">
+                        <span class="material-symbols-outlined text-outline text-[16px]">monitoring</span>
+                        <h2 class="font-title text-title text-primary">Sensores ADC — 4 Canales</h2>
+                    </div>
+                    <span class="font-label text-label text-outline" id="sensor-status">SIN DATOS</span>
+                </div>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-md" id="sensor-grid">
+                    <!-- Tarjetas generadas por JavaScript -->
+                </div>
+                <div class="mt-md flex items-center justify-center gap-sm font-data-sm text-data-sm text-outline/80 text-center">
+                    <span class="material-symbols-outlined text-[13px]">info</span>
+                    <span>El Arduino envía lecturas (0–1023) de 4 potenciómetros.<br>Formatos: <span class="text-on-surface-variant">{"canales":[v0,v1,v2,v3]}</span> · <span class="text-on-surface-variant">0:512</span> · <span class="text-on-surface-variant">512,300,10,800</span> · trama binaria de 2 bytes</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Delivery feedback -->
         <div class="flex items-center gap-sm px-md py-xs bg-surface-variant/20 rounded-full border border-outline-variant/20 opacity-0 transition-opacity duration-200" id="delivery-badge">
             <span class="material-symbols-outlined text-[14px] text-[#4ade80]" id="delivery-icon">check_circle</span>
@@ -473,6 +544,13 @@
         const deliveryBadge = document.getElementById('delivery-badge');
         const deliveryIcon = document.getElementById('delivery-icon');
         const deliveryText = document.getElementById('delivery-text');
+
+        // Sensores
+        const sensorGrid = document.getElementById('sensor-grid');
+        const sensorStatus = document.getElementById('sensor-status');
+        const sideLedCarro = document.getElementById('side-led-carro');
+        const sideLedArduino = document.getElementById('side-led-arduino');
+        const sideLedSensores = document.getElementById('side-led-sensores');
 
         // Teclas especiales que NO se envían al Arduino (solo visuales)
         const SKIP_KEYS = ['caps', 'shift', 'enter', 'backspace', ' '];
@@ -534,13 +612,96 @@
             if (data.carroOnline !== undefined) {
                 infoCarro.textContent = data.carroOnline ? 'Conectado' : 'Offline';
                 infoCarro.className = data.carroOnline ? 'text-[#4ade80]' : 'text-[#f87171]';
+                setSideLed(sideLedCarro, data.carroOnline);
             }
             if (data.arduinoOnline !== undefined) {
                 infoArduino.textContent = data.arduinoOnline ? 'Conectado' : 'Offline';
                 infoArduino.className = data.arduinoOnline ? 'text-[#4ade80]' : 'text-[#f87171]';
+                setSideLed(sideLedArduino, data.arduinoOnline);
             }
             if (data.frontendsOnline !== undefined) {
                 infoFrontends.textContent = data.frontendsOnline;
+            }
+            if (data.sensoresOnline !== undefined) {
+                setSideLed(sideLedSensores, data.sensoresOnline);
+                if (!data.sensoresOnline) {
+                    sensorStatus.textContent = 'SIN DATOS';
+                    sensorStatus.className = 'font-label text-label text-outline';
+                }
+            }
+            if (data.sensores) updateSensores(data.sensores, false);
+        }
+
+        // --- Sensores: tarjetas de los 4 canales ---
+        const sensorEls = [];
+        function buildSensorCards() {
+            for (let i = 0; i < 4; i++) {
+                const card = document.createElement('div');
+                card.className = 'sensor-card flex flex-col gap-xs px-md py-md border border-outline-variant rounded-xl bg-surface/80 backdrop-blur-sm shadow-sm';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="font-label text-label text-outline uppercase tracking-wider">CH${i}</span>
+                        <span class="material-symbols-outlined text-outline-variant text-[14px]">speed</span>
+                    </div>
+                    <div class="flex items-baseline gap-xs">
+                        <span class="font-display text-display text-primary" id="sensor-val-${i}">--</span>
+                        <span class="font-data-sm text-data-sm text-outline">/1023</span>
+                    </div>
+                    <div class="flex items-center justify-between font-data-sm text-data-sm">
+                        <span class="text-outline" id="sensor-volt-${i}">-- V</span>
+                        <span class="text-on-surface-variant" id="sensor-pct-${i}">0%</span>
+                    </div>
+                    <div class="h-1.5 rounded-full bg-surface-container-high overflow-hidden">
+                        <div class="sensor-bar-fill h-full rounded-full bg-gradient-to-r from-[#4ade80] to-[#60a5fa]" id="sensor-bar-${i}" style="width: 0%"></div>
+                    </div>
+                `;
+                sensorGrid.appendChild(card);
+                sensorEls.push({
+                    card,
+                    val: document.getElementById(`sensor-val-${i}`),
+                    volt: document.getElementById(`sensor-volt-${i}`),
+                    pct: document.getElementById(`sensor-pct-${i}`),
+                    bar: document.getElementById(`sensor-bar-${i}`),
+                });
+            }
+        }
+
+        function setSideLed(el, online) {
+            el.className = online
+                ? 'w-2 h-2 rounded-full bg-[#4ade80] glow-active'
+                : 'w-2 h-2 rounded-full bg-[#f87171]';
+        }
+
+        let sensorFrames = 0;
+        let lastSensorLog = 0;
+        function updateSensores(canales, live) {
+            if (!Array.isArray(canales)) return;
+            const now = Date.now();
+            canales.forEach((c, i) => {
+                if (i >= sensorEls.length || c === undefined || c === null) return;
+                const valor = typeof c === 'number' ? c : c.valor;
+                if (typeof valor !== 'number' || !Number.isFinite(valor)) return;
+                const volt = typeof c === 'object' && typeof c.voltaje === 'number'
+                    ? c.voltaje
+                    : (valor / 1023) * 5.0;
+                const pct = Math.min(100, Math.max(0, (valor / 1023) * 100));
+                sensorEls[i].val.textContent = valor;
+                sensorEls[i].volt.textContent = `${volt.toFixed(2)} V`;
+                sensorEls[i].pct.textContent = `${Math.round(pct)}%`;
+                sensorEls[i].bar.style.width = `${pct}%`;
+                sensorEls[i].card.classList.add('sensor-fresh');
+                setTimeout(() => sensorEls[i].card.classList.remove('sensor-fresh'), 400);
+            });
+            if (live) {
+                sensorFrames++;
+                sensorStatus.textContent = `LIVE · ${sensorFrames} tramas`;
+                sensorStatus.className = 'font-label text-label text-[#4ade80]';
+                setSideLed(sideLedSensores, true);
+                if (now - lastSensorLog > 2000) {
+                    lastSensorLog = now;
+                    const vals = canales.map((c) => (typeof c === 'number' ? c : c?.valor ?? '--')).join(', ');
+                    terminalLog(`📊 Sensores [${vals}]`, 'text-[#4ade80]');
+                }
             }
         }
 
@@ -765,6 +926,9 @@
                     terminalLog('🤖 Arduino conectado', 'text-[#4ade80]');
                 } else if (msg.event === 'arduino_disconnected') {
                     terminalLog('🔌 Arduino desconectado', 'text-[#f87171]');
+                    sensorStatus.textContent = 'SIN DATOS';
+                    sensorStatus.className = 'font-label text-label text-outline';
+                    setSideLed(sideLedSensores, false);
                 } else if (msg.event === 'arduino_msg') {
                     terminalLog(`📥 Arduino: ${msg.data}`, 'text-[#c7c6c6]');
                 } else if (msg.event === 'sent_cmd') {
@@ -774,6 +938,8 @@
                     );
                 } else if (msg.event === 'server_info') {
                     updateServerInfo(msg);
+                } else if (msg.event === 'sensores') {
+                    updateSensores(msg.canales, true);
                 } else if (msg.event === 'sent') {
                     showDelivery(msg.delivered, msg.key);
                     if (!msg.delivered) {
@@ -802,25 +968,30 @@
             };
         }
 
-        // --- Tabs ---
-        let activeTab = 'carro';
-        function switchTab(tab) {
-            if (tab !== 'carro' && tab !== 'arduino') return; // ignorar clicks no válidos
-            if (tab === activeTab) return;
-            activeTab = tab;
-            document.querySelectorAll('.tab-btn').forEach(b => {
-                b.classList.toggle('tab-active', b.dataset.tab === tab);
+        // --- Navegación lateral (vistas) ---
+        let activeView = 'carro';
+        const viewEls = {
+            carro: document.getElementById('view-carro'),
+            arduino: document.getElementById('view-arduino'),
+            sensores: document.getElementById('view-sensores'),
+        };
+        function switchView(view) {
+            if (!viewEls[view]) return; // click no válido
+            if (view === activeView) return;
+            activeView = view;
+            document.querySelectorAll('.nav-item').forEach(b => {
+                b.classList.toggle('nav-active', b.dataset.view === view);
             });
-            const carroEl = document.getElementById('tab-carro');
-            const arduinoEl = document.getElementById('tab-arduino');
-            carroEl.classList.toggle('hidden', tab !== 'carro');
-            arduinoEl.classList.toggle('hidden', tab !== 'arduino');
-            // Animación de entrada del tab activo
-            const activo = tab === 'carro' ? carroEl : arduinoEl;
-            Motion.animate(activo, { opacity: [0, 1], y: [14, 0] }, { duration: 0.3, easing: [0.2, 0.65, 0.4, 1] });
+            Object.entries(viewEls).forEach(([name, el]) => {
+                el.classList.toggle('hidden', name !== view);
+            });
+            // El panel de tecla pulsada solo tiene sentido en Carro/Arduino
+            keyPanel.classList.toggle('hidden', view === 'sensores');
+            // Animación de entrada de la vista activa
+            Motion.animate(viewEls[view], { opacity: [0, 1], y: [14, 0] }, { duration: 0.3, easing: [0.2, 0.65, 0.4, 1] });
         }
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        document.querySelectorAll('.nav-item').forEach(btn => {
+            btn.addEventListener('click', () => switchView(btn.dataset.view));
         });
 
         // --- Keyboard listener (teclado físico según tab activo) ---
@@ -830,8 +1001,11 @@
 
             const key = e.key;
 
-            // En el tab Carro: flechas controlan el carro
-            if (activeTab === 'carro') {
+            // En la vista Sensores el teclado físico no envía nada
+            if (activeView === 'sensores') return;
+
+            // En la vista Carro: flechas controlan el carro
+            if (activeView === 'carro') {
                 if (key === 'ArrowUp') { e.preventDefault(); sendCarCmd('adelante'); return; }
                 if (key === 'ArrowDown') { e.preventDefault(); sendCarCmd('atras'); return; }
                 if (key === 'ArrowLeft') { e.preventDefault(); sendCarCmd('izquierda'); return; }
@@ -840,7 +1014,7 @@
                 return;
             }
 
-            // En el tab Arduino: teclas imprimibles → Arduino
+            // En la vista Arduino: teclas imprimibles → Arduino
             if (key.length === 1) {
                 e.preventDefault();
                 sendKey(key.toLowerCase());
@@ -946,13 +1120,15 @@
         });
 
         // --- Init ---
+        buildSensorCards();
         setConnectionStatus('disconnected');
         connectWS();
 
         // --- Animación de entrada (stagger) ---
+        Motion.animate('aside', { opacity: [0, 1], x: [-16, 0] }, { duration: 0.4, easing: [0.2, 0.65, 0.4, 1] });
         Motion.animate('#key-panel', { opacity: [0, 1], y: [20, 0] }, { duration: 0.45, easing: [0.2, 0.65, 0.4, 1] });
-        Motion.animate('#tab-carro', { opacity: [0, 1], y: [16, 0] }, { duration: 0.45, delay: 0.12, easing: [0.2, 0.65, 0.4, 1] });
-        document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+        Motion.animate('#view-carro', { opacity: [0, 1], y: [16, 0] }, { duration: 0.45, delay: 0.12, easing: [0.2, 0.65, 0.4, 1] });
+        document.querySelectorAll('.nav-item').forEach((btn, i) => {
             Motion.animate(btn, { opacity: [0, 1], scale: [0.8, 1] }, { duration: 0.3, delay: 0.15 + i * 0.08 });
         });
 
