@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Arduino Controller Dashboard</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Motion (animaciones) -->
+<script src="https://cdn.jsdelivr.net/npm/motion@11.11.17/dist/motion.min.js"></script>
+<!-- Tailwind Theme Config -->
+<script id="tailwind-config">
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                "colors": {
+                    "on-secondary-fixed-variant": "#464747",
+                    "secondary-container": "#464747",
+                    "surface-container": "#20201f",
+                    "primary": "#ffffff",
+                    "on-primary-fixed-variant": "#454747",
+                    "on-surface": "#e5e2e1",
+                    "surface-bright": "#393939",
+                    "secondary-fixed": "#e3e2e2",
+                    "surface": "#131313",
+                    "on-tertiary-container": "#636565",
+                    "secondary": "#c7c6c6",
+                    "inverse-surface": "#e5e2e1",
+                    "on-primary-fixed": "#1a1c1c",
+                    "on-primary": "#2f3131",
+                    "surface-container-lowest": "#0e0e0e",
+                    "on-primary-container": "#636565",
+                    "tertiary": "#ffffff",
+                    "surface-variant": "#353535",
+                    "on-error-container": "#ffdad6",
+                    "secondary-fixed-dim": "#c7c6c6",
+                    "surface-tint": "#c6c6c7",
+                    "error-container": "#93000a",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "surface-container-low": "#1c1b1b",
+                    "on-background": "#e5e2e1",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "surface-container-high": "#2a2a2a",
+                    "outline-variant": "#444748",
+                    "inverse-on-surface": "#313030",
+                    "primary-fixed": "#e2e2e2",
+                    "surface-dim": "#131313",
+                    "tertiary-fixed": "#e2e2e2",
+                    "tertiary-container": "#e2e2e2",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "primary-container": "#e2e2e2",
+                    "primary-fixed-dim": "#c6c6c7",
+                    "outline": "#8e9192",
+                    "on-surface-variant": "#c4c7c8",
+                    "on-tertiary": "#2f3131",
+                    "surface-container-highest": "#353535",
+                    "background": "#000000",
+                    "error": "#ffb4ab",
+                    "on-secondary": "#303031",
+                    "on-secondary-container": "#b5b5b5",
+                    "on-secondary-fixed": "#1b1c1c",
+                    "inverse-primary": "#5d5f5f",
+                    "on-error": "#690005"
+                },
+                "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+                },
+                "spacing": {
+                    "unit": "4px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "md": "16px",
+                    "gutter": "16px",
+                    "sm": "8px",
+                    "lg": "24px",
+                    "container-margin": "24px"
+                },
+                "fontFamily": {
+                    "data-lg": ["JetBrains Mono", "monospace"],
+                    "headline": ["Inter", "sans-serif"],
+                    "label": ["Inter", "sans-serif"],
+                    "body-lg": ["Inter", "sans-serif"],
+                    "body-sm": ["Inter", "sans-serif"],
+                    "display": ["Inter", "sans-serif"],
+                    "title": ["Inter", "sans-serif"],
+                    "data-sm": ["JetBrains Mono", "monospace"]
+                },
+                "fontSize": {
+                    "data-lg": ["16px", { "lineHeight": "24px", "fontWeight": "500" }],
+                    "headline": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                    "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.08em", "fontWeight": "700" }],
+                    "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                    "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                    "display": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                    "title": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                    "data-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500" }]
+                }
+            }
+        }
+    }
+</script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap');
+
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+
+    @keyframes subtle-pulse {
+        0% { box-shadow: 0 0 12px rgba(255, 255, 255, 0.1); }
+        50% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.3); }
+        100% { box-shadow: 0 0 12px rgba(255, 255, 255, 0.1); }
+    }
+
+    .glow-active {
+        animation: subtle-pulse 2s infinite;
+    }
+
+    .scale-display-text {
+        transform: scale(2.5);
+        transform-origin: center;
+    }
+
+    @keyframes fade-in {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fade-in {
+        animation: fade-in 0.2s ease-out;
+    }
+
+    /* Teclado visual */
+    .keycap {
+        transition: background-color 0.05s ease-in-out;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    .keycap.is-active {
+        background-color: #333333 !important;
+        border-color: #ffffff !important;
+        box-shadow: 0 0 12px rgba(255,255,255,0.2);
+    }
+
+    /* Botones del carro */
+    .car-btn {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        background: #1A1A1A;
+        border: 1px solid rgba(255,255,255,0.12);
+        color: #D1D1D1;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.08s;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    .car-btn:hover { background: #252525; }
+    .car-btn:active, .car-btn.is-active {
+        background: #333333;
+        border-color: #ffffff;
+        box-shadow: 0 0 12px rgba(255,255,255,0.25);
+    }
+    .car-stop { background: #3a1010; }
+    .car-stop:hover { background: #4a1515; }
+
+    /* Tabs */
+    .tab-btn {
+        padding: 8px 22px;
+        border-radius: 9999px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #8e9192;
+        background: transparent;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    .tab-btn:hover { color: #c4c7c7; }
+    .tab-btn.tab-active {
+        background: #2a2a2a;
+        color: #ffffff;
+        border-color: rgba(255,255,255,0.15);
+    }
+    .tab-content.hidden { display: none; }
+
+    /* Toggle de cámara (estilo propio, NO es un tab) */
+    .cam-toggle {
+        padding: 6px 18px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #8e9192;
+        background: transparent;
+        border: 1px solid rgba(255,255,255,0.15);
+        cursor: pointer;
+        transition: all 0.15s;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    .cam-toggle:hover { color: #c4c7c7; }
+    .cam-toggle.cam-toggle-on {
+        background: #2a2a2a;
+        color: #ffffff;
+    }
+
+    /* Scrollbar oscura para el terminal */
+    #terminal-scroll::-webkit-scrollbar {
+        width: 6px;
+    }
+    #terminal-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    #terminal-scroll::-webkit-scrollbar-thumb {
+        background: #444748;
+        border-radius: 3px;
+    }
+    #terminal-scroll::-webkit-scrollbar-thumb:hover {
+        background: #636565;
+    }
+    #terminal-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: #444748 transparent;
+    }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap">
+</head>
+<body class="bg-background text-on-surface h-screen w-screen overflow-hidden flex font-body-lg text-body-lg">
+
+<!-- Main Content Wrapper -->
+<main class="flex-1 flex flex-col h-full relative">
+
+<!-- Canvas (Dashboard Content) -->
+<div class="flex-1 p-xl flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-surface-container-low to-background">
+
+<!-- Top-right metrics -->
+<div class="absolute top-xl right-xl flex items-center gap-md">
+    <!-- Latency Metric -->
+    <div class="flex items-center gap-md px-md py-sm border border-outline-variant rounded-DEFAULT bg-surface/80 backdrop-blur-sm shadow-sm">
+        <div class="flex flex-col">
+            <span class="font-label text-label text-outline uppercase tracking-wider">Latencia</span>
+            <span class="font-data-lg text-data-lg text-primary mt-[2px]" id="latency-val">--ms</span>
+        </div>
+        <span class="material-symbols-outlined text-outline text-[16px]">network_ping</span>
+    </div>
+    <!-- Connection Status Pill -->
+    <div class="flex items-center gap-sm px-md py-xs border border-outline-variant rounded-full bg-surface-container shadow-sm">
+        <div class="w-2 h-2 rounded-full bg-[#f87171]" id="conn-led"></div>
+        <span class="font-label text-label text-on-surface" id="conn-label">CONECTANDO</span>
+    </div>
+</div>
+
+<!-- Bottom Row: Server Info + Terminal (redimensionable) -->
+<div class="relative mt-auto w-full flex gap-md" id="bottom-row" style="height: 20vh; min-height: 120px; max-height: 60vh;">
+    <!-- Manija de redimensionamiento -->
+    <div class="absolute -top-2 left-1/2 -translate-x-1/2 w-10 h-1.5 bg-outline-variant/40 rounded-full cursor-ns-resize hover:bg-outline hover:h-2 transition-all" id="resize-handle" title="Arrastra para redimensionar"></div>
+    <!-- Server Info Card -->
+    <div class="flex-shrink-0">
+        <div class="flex flex-col gap-xs px-lg py-md border border-outline-variant rounded-xl bg-surface/80 backdrop-blur-sm shadow-sm h-full justify-center" style="min-width: 200px;">
+            <div class="flex items-center gap-sm mb-1">
+                <span class="material-symbols-outlined text-outline text-[14px]">dns</span>
+                <span class="font-label text-label text-outline uppercase tracking-wider">Info del Servidor</span>
+            </div>
+            <div class="flex flex-col gap-[2px] font-data-sm text-data-sm">
+                <div class="flex justify-between">
+                    <span class="text-outline">URL</span>
+                    <span class="text-primary truncate ml-sm max-w-[130px]" id="info-url">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-outline">Puerto</span>
+                    <span class="text-primary" id="info-port">--</span>
+                </div>
+                <div class="flex justify-between border-t border-outline-variant/30 pt-[2px] mt-[2px]">
+                    <span class="text-outline">Carro</span>
+                    <span class="text-[#f87171]" id="info-carro">Offline</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-outline">Arduino</span>
+                    <span class="text-[#f87171]" id="info-arduino">Offline</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-outline">Frontends</span>
+                    <span class="text-primary" id="info-frontends">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal / Log -->
+    <div class="flex-1 bg-[#0a0a0a] border border-outline-variant rounded-lg overflow-hidden relative font-data-sm text-data-sm text-outline-variant flex flex-col h-full">
+        <!-- Cabecera fija -->
+        <div class="flex-shrink-0 w-full px-md py-xs border-b border-outline-variant/50 flex justify-between items-center bg-[#0a0a0a] z-10">
+            <span class="text-[10px] uppercase tracking-widest text-primary/70">Serial Output — WS Log</span>
+            <span class="material-symbols-outlined text-[14px] text-primary/50">sync_alt</span>
+        </div>
+        <!-- Contenido scrolleable -->
+        <div class="flex-1 overflow-y-auto overflow-x-hidden p-md" id="terminal-scroll">
+            <div class="flex flex-col gap-1 opacity-70" id="terminal-lines">
+                <div class="flex gap-4"><span class="text-tertiary">[--:--:--]</span><span class="">CONECTANDO AL SERVIDOR...</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Centered Layout Area -->
+<div class="flex-1 flex flex-col items-center justify-center w-full h-full">
+    <div class="flex flex-col items-center gap-md">
+
+        <!-- Key Detection Panel (compartido) -->
+        <div class="relative flex flex-col items-center justify-center transition-all duration-100" id="key-panel">
+            <div class="h-32 flex items-center justify-center w-full mb-md" id="key-display-wrap">
+                <span class="font-display text-display text-inverse-surface scale-display-text tracking-widest opacity-90 transition-all duration-75" id="key-display">---</span>
+            </div>
+            <div class="flex items-center gap-sm mt-xl px-md py-xs bg-surface-variant/30 rounded-full border border-outline-variant/30">
+                <span class="material-symbols-outlined text-outline text-[14px]">keyboard</span>
+                <span class="font-label text-label text-on-surface-variant" id="key-hint">Elige Carro o Arduino</span>
+            </div>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="flex gap-2 bg-surface-container-low/60" style="border-radius: 9999px;">
+            <button class="tab-btn tab-active" data-tab="carro" id="tab-btn-carro">
+                🚗 Carro
+            </button>
+            <button class="tab-btn" data-tab="arduino" id="tab-btn-arduino">
+                ⌨️ Arduino
+            </button>
+        </div>
+
+        <!-- ============ TAB: CARRO ============ -->
+        <div id="tab-carro" class="tab-content flex flex-col items-center gap-lg">
+        <!-- Car Control Panel -->
+        <div class="flex items-center gap-lg mt-md" id="car-panel">
+            <!-- D-Pad -->
+            <div class="grid grid-cols-3 gap-1.5">
+                <div></div>
+                <button class="car-btn" data-cmd="adelante" title="Adelante">▲</button>
+                <div></div>
+                <button class="car-btn" data-cmd="izquierda" title="Izquierda">◀</button>
+                <button class="car-btn car-stop" data-cmd="parar" title="Parar">■</button>
+                <button class="car-btn" data-cmd="derecha" title="Derecha">▶</button>
+                <div></div>
+                <button class="car-btn" data-cmd="atras" title="Atrás">▼</button>
+                <div></div>
+            </div>
+            <!-- Sliders -->
+            <div class="flex flex-col gap-2 font-data-sm text-data-sm">
+                <div class="flex items-center gap-2">
+                    <span class="text-outline w-16">Velocidad</span>
+                    <input type="range" id="speed-slider" min="0" max="255" value="200" class="w-32 accent-white">
+                    <span class="text-primary w-8" id="speed-val">200</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-outline w-16">Luz LED</span>
+                    <input type="range" id="light-slider" min="0" max="255" value="0" class="w-32 accent-white">
+                    <span class="text-primary w-8" id="light-val">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cámara (abajo, más grande) -->
+        <div class="flex flex-col items-center gap-2 mt-md">
+            <div class="relative w-[440px] h-[260px] bg-[#0a0a0a] rounded-lg border border-outline-variant/30 overflow-hidden">
+                <img id="cam-img" class="w-full h-full object-cover hidden" alt="Cámara del carro" decoding="async">
+                <!-- Placeholder cuando no hay video -->
+                <div id="cam-placeholder" class="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-4xl text-outline-variant">videocam_off</span>
+                    <span class="font-label text-label text-outline" id="cam-placeholder-text">Carro no conectado</span>
+                </div>
+                <span id="cam-status" class="absolute bottom-1 right-1 text-[9px] font-data-sm text-primary/70 bg-black/60 px-1.5 py-0.5 rounded hidden">OFF</span>
+            </div>
+            <button id="video-toggle" class="cam-toggle cam-toggle-on">📷 Apagar cámara</button>
+        </div>
+        </div>
+
+        <!-- ============ TAB: ARDUINO ============ -->
+        <div id="tab-arduino" class="tab-content hidden flex-col items-center gap-lg">
+        <!-- Teclado visual -->
+        <div class="flex flex-col gap-[6px] items-center select-none mt-md" id="visual-keyboard">
+            <!-- Row 1: Números -->
+            <div class="flex gap-[6px] justify-center">
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="1">1</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="2">2</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="3">3</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="4">4</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="5">5</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="6">6</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="7">7</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="8">8</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="9">9</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="0">0</div>
+            </div>
+            <!-- Row 2: QWERTYUIOP -->
+            <div class="flex gap-[6px] justify-center">
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="q">Q</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="w">W</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="e">E</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="r">R</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="t">T</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="y">Y</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="u">U</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="i">I</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="o">O</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="p">P</div>
+            </div>
+            <!-- Row 3: ASDFGHJKL -->
+            <div class="flex gap-[6px] justify-center">
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-sm w-16 h-11 cursor-pointer border border-outline-variant/30 text-[11px] font-semibold" data-key="caps">caps</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="a">A</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="s">S</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="d">D</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="f">F</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="g">G</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="h">H</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="j">J</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="k">K</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="l">L</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-sm w-16 h-11 cursor-pointer border border-outline-variant/30 text-[11px] font-semibold" data-key="enter">enter</div>
+            </div>
+            <!-- Row 4: ZXCVBNM -->
+            <div class="flex gap-[6px] justify-center">
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-sm w-[90px] h-11 cursor-pointer border border-outline-variant/30 text-[11px] font-semibold" data-key="shift">shift</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="z">Z</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="x">X</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="c">C</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="v">V</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="b">B</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="n">N</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-10 h-11 cursor-pointer border border-outline-variant/30 text-sm font-semibold" data-key="m">M</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-sm w-[90px] h-11 cursor-pointer border border-outline-variant/30 text-[11px] font-semibold" data-key="backspace">delete</div>
+            </div>
+            <!-- Row 5: Tab + Barra espaciadora -->
+            <div class="flex gap-[6px] justify-center">
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-sm w-[72px] h-11 cursor-pointer border border-outline-variant/30 text-[11px] font-semibold" data-key="tab">tab</div>
+                <div class="keycap bg-[#1A1A1A] hover:bg-[#252525] active:bg-[#333333] rounded-lg flex items-center justify-center text-[#D1D1D1] font-key-legend-lg w-[210px] h-11 cursor-pointer border border-outline-variant/30 text-xs font-semibold tracking-widest" data-key=" ">SPACE</div>
+            </div>
+        </div>
+        </div>
+
+        <!-- Delivery feedback -->
+        <div class="flex items-center gap-sm px-md py-xs bg-surface-variant/20 rounded-full border border-outline-variant/20 opacity-0 transition-opacity duration-200" id="delivery-badge">
+            <span class="material-symbols-outlined text-[14px] text-[#4ade80]" id="delivery-icon">check_circle</span>
+            <span class="font-label text-label text-on-surface-variant" id="delivery-text"></span>
+        </div>
+
+    </div>
+</div>
+
+</div>
+</main>
+
+<!-- Interactive Script -->
+<script>
+    (() => {
+        // DOM refs
+        const keyDisplay = document.getElementById('key-display');
+        const keyPanel = document.getElementById('key-panel');
+        const keyHint = document.getElementById('key-hint');
+        const latencyVal = document.getElementById('latency-val');
+        const terminalLines = document.getElementById('terminal-lines');
+        const terminalScroll = document.getElementById('terminal-scroll');
+        const connLed = document.getElementById('conn-led');
+        const connLabel = document.getElementById('conn-label');
+        const deliveryBadge = document.getElementById('delivery-badge');
+        const deliveryIcon = document.getElementById('delivery-icon');
+        const deliveryText = document.getElementById('delivery-text');
+
+        // Teclas especiales que NO se envían al Arduino (solo visuales)
+        const SKIP_KEYS = ['caps', 'shift', 'enter', 'backspace', ' '];
+
+        // Server info refs
+        const infoUrl = document.getElementById('info-url');
+        const infoPort = document.getElementById('info-port');
+        const infoCarro = document.getElementById('info-carro');
+        const infoArduino = document.getElementById('info-arduino');
+        const infoFrontends = document.getElementById('info-frontends');
+
+        // Carro refs
+        const speedSlider = document.getElementById('speed-slider');
+        const speedVal = document.getElementById('speed-val');
+        const lightSlider = document.getElementById('light-slider');
+        const lightVal = document.getElementById('light-val');
+
+        // Cámara refs
+        const camImg = document.getElementById('cam-img');
+        const camStatus = document.getElementById('cam-status');
+        const camPlaceholder = document.getElementById('cam-placeholder');
+        const camPlaceholderText = document.getElementById('cam-placeholder-text');
+        const videoToggle = document.getElementById('video-toggle');
+        let videoOn = true; // el firmware envía video por defecto (WS_ENVIAR_VIDEO=1)
+
+        // Diagnóstico de frames de video
+        let frameCount = 0;
+        let lastFrameTime = 0;
+        let currentFps = 0;
+
+        // --- Cámara: mostrar/ocultar placeholder ---
+        function showCamPlaceholder(text) {
+            camImg.classList.add('hidden');
+            camImg.removeAttribute('src');
+            camPlaceholder.classList.remove('hidden');
+            camPlaceholderText.textContent = text;
+            camStatus.classList.add('hidden');
+        }
+        function showCamLive() {
+            camPlaceholder.classList.add('hidden');
+            camImg.classList.remove('hidden');
+            camStatus.classList.remove('hidden');
+        }
+
+        // Auto-detectar ws:// o wss:// según si la página es HTTP o HTTPS
+        const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+        let ws = null;
+        let carroOnline = false;
+        let wsConnected = false;
+        let deliveryTimer = null;
+        const KEY_DELAY = 300; // ms entre cada tecla enviada
+        const keyQueue = [];
+        let queueTimer = null;
+
+        // --- Server info ---
+        function updateServerInfo(data) {
+            if (data.url) infoUrl.textContent = data.url;
+            if (data.port) infoPort.textContent = data.port;
+            if (data.carroOnline !== undefined) {
+                infoCarro.textContent = data.carroOnline ? 'Conectado' : 'Offline';
+                infoCarro.className = data.carroOnline ? 'text-[#4ade80]' : 'text-[#f87171]';
+            }
+            if (data.arduinoOnline !== undefined) {
+                infoArduino.textContent = data.arduinoOnline ? 'Conectado' : 'Offline';
+                infoArduino.className = data.arduinoOnline ? 'text-[#4ade80]' : 'text-[#f87171]';
+            }
+            if (data.frontendsOnline !== undefined) {
+                infoFrontends.textContent = data.frontendsOnline;
+            }
+        }
+
+        // --- Terminal ---
+        function terminalLog(text, cls = '') {
+            const now = new Date();
+            const timeStr = `[${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}]`;
+            const line = document.createElement('div');
+            line.className = 'flex gap-4 animate-fade-in';
+            line.innerHTML = `<span class="text-tertiary flex-shrink-0">${timeStr}</span><span class="${cls} break-all">${text}</span>`;
+            terminalLines.appendChild(line);
+
+            // Limpiar líneas viejas (mantener últimas 200)
+            while (terminalLines.children.length > 200) {
+                terminalLines.removeChild(terminalLines.firstChild);
+            }
+
+            // Auto-scroll al fondo (respeta si el usuario scrolleó manualmente hacia arriba)
+            const scrollEl = terminalScroll;
+            const isNearBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 50;
+            if (isNearBottom) {
+                requestAnimationFrame(() => {
+                    scrollEl.scrollTop = scrollEl.scrollHeight;
+                });
+            }
+        }
+
+        // --- Status LED ---
+        function setConnectionStatus(status) {
+            connLed.classList.remove('bg-[#f87171]', 'bg-[#fbbf24]', 'bg-[#4ade80]', 'glow-active');
+            if (status === 'connected') {
+                connLed.classList.add('bg-[#4ade80]', 'glow-active');
+                connLabel.textContent = 'CONECTADO';
+            } else if (status === 'waiting') {
+                connLed.classList.add('bg-[#fbbf24]', 'glow-active');
+                connLabel.textContent = 'ESP. ARDUINO';
+            } else {
+                connLed.classList.add('bg-[#f87171]');
+                connLabel.textContent = 'DESCONECTADO';
+            }
+        }
+
+        // --- Delivery feedback ---
+        function showDelivery(success, key) {
+            clearTimeout(deliveryTimer);
+            deliveryBadge.classList.remove('opacity-0');
+            deliveryBadge.classList.add('opacity-100');
+            Motion.animate(deliveryBadge, { opacity: [0, 1], y: [8, 0] }, { duration: 0.25 });
+            if (success) {
+                deliveryIcon.textContent = 'check_circle';
+                deliveryIcon.className = 'material-symbols-outlined text-[14px] text-[#4ade80]';
+                deliveryText.textContent = `"${key}" enviado al Arduino ✅`;
+            } else {
+                deliveryIcon.textContent = 'error';
+                deliveryIcon.className = 'material-symbols-outlined text-[14px] text-[#f87171]';
+                deliveryText.textContent = 'Arduino no conectado ❌';
+            }
+            deliveryTimer = setTimeout(() => {
+                Motion.animate(deliveryBadge, { opacity: [1, 0], y: [0, 8] }, { duration: 0.25 })
+                    .finished.then(() => {
+                        deliveryBadge.classList.remove('opacity-100');
+                        deliveryBadge.classList.add('opacity-0');
+                    });
+            }, 2500);
+        }
+
+        // --- Key display animation ---
+        function flashKeyDisplay(key) {
+            keyDisplay.textContent = key;
+            keyDisplay.classList.add('text-primary');
+            keyDisplay.classList.remove('text-inverse-surface');
+            keyPanel.classList.add('border-primary/50');
+            keyPanel.classList.remove('border-outline-variant');
+
+            // Pulso con Motion en el contenedor (no toca el scale 2.5 del texto)
+            Motion.animate('#key-display-wrap', { scale: [1, 1.08, 1] }, { duration: 0.3, easing: [0.2, 0.65, 0.4, 1] });
+
+            setTimeout(() => {
+                keyDisplay.classList.remove('text-primary');
+                keyDisplay.classList.add('text-inverse-surface');
+                keyPanel.classList.remove('border-primary/50');
+                keyPanel.classList.add('border-outline-variant');
+            }, 300);
+        }
+
+        // --- Button active animation ---
+        function flashButton(key) {
+            // Mapear caracteres especiales a nombres de data-key
+            const dataKey = key === '\t' ? 'tab' : key;
+            const btn = document.querySelector(`.keycap[data-key="${dataKey}"]`);
+            if (!btn) return;
+            btn.classList.add('is-active');
+            Motion.animate(btn, { scale: [1, 0.9, 1] }, { duration: 0.18 });
+            setTimeout(() => btn.classList.remove('is-active'), 150);
+        }
+
+        // --- Formatear carácter para mostrar (ej: \t → "\\t") ---
+        function fmtKey(key) {
+            if (key === '\t') return '\\t';
+            if (key === '\n') return '\\n';
+            if (key === '\b') return '\\b';
+            if (key === '\r') return '\\r';
+            if (key === ' ')  return '[SPACE]';
+            return key;
+        }
+
+        // --- Procesar cola de teclas ---
+        function processQueue() {
+            if (keyQueue.length === 0) {
+                queueTimer = null;
+                return;
+            }
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                keyQueue.length = 0;
+                queueTimer = null;
+                return;
+            }
+            const key = keyQueue.shift();
+            ws.send(key);
+            flashKeyDisplay(fmtKey(key));
+            flashButton(key);
+            terminalLog(`TX: "${fmtKey(key)}" (ASCII ${key.charCodeAt(0)}) → Arduino`, 'text-[#60a5fa]');
+
+            const latency = Math.floor(Math.random() * 10) + 5;
+            latencyVal.textContent = `${latency}ms`;
+
+            // Programar siguiente envío
+            queueTimer = setTimeout(processQueue, KEY_DELAY);
+        }
+
+        // --- Send key to server (encola) ---
+        function sendKey(key) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                terminalLog('WS no conectado — no se puede enviar', 'text-[#f87171]');
+                return;
+            }
+            // Evitar duplicados consecutivos en la cola
+            if (keyQueue.length > 0 && keyQueue[keyQueue.length - 1] === key) return;
+            // Limitar cola a 20 teclas máximo
+            if (keyQueue.length >= 20) return;
+
+            keyQueue.push(key);
+            // Si no hay timer activo, arrancar el procesamiento
+            if (!queueTimer) {
+                queueTimer = setTimeout(processQueue, 0);
+            }
+        }
+
+        // --- WebSocket ---
+        function connectWS() {
+            if (ws) { ws.close(); }
+            ws = new WebSocket(WS_URL);
+            ws.binaryType = 'arraybuffer'; // recibir frames de video como ArrayBuffer
+
+            ws.onopen = () => {
+                wsConnected = true;
+                terminalLog('WS conectado — registrando como frontend...', 'text-[#4ade80]');
+                ws.send('frontend');
+            };
+
+            ws.onmessage = (event) => {
+                // Frame binario: imagen JPEG del carro → pintar en <img>
+                if (event.data instanceof ArrayBuffer) {
+                    frameCount++;
+                    const now = performance.now();
+                    if (lastFrameTime > 0) {
+                        const dt = now - lastFrameTime;
+                        if (dt > 0) currentFps = Math.round(1000 / dt);
+                    }
+                    lastFrameTime = now;
+                    // Diagnóstico en consola (F12): cada 10 frames
+                    if (frameCount % 10 === 0) {
+                        console.log(`frames mostrados: ${frameCount}, size=${event.data.byteLength}B, fps≈${currentFps}`);
+                    }
+
+                    showCamLive();
+                    const blob = new Blob([event.data], { type: 'image/jpeg' });
+                    const url = URL.createObjectURL(blob);
+                    const old = camImg.src;
+                    camImg.src = url;
+                    if (old && old.startsWith('blob:')) URL.revokeObjectURL(old);
+                    camStatus.textContent = `LIVE ${Math.round(event.data.byteLength / 1024)}KB · ${currentFps}fps`;
+                    return;
+                }
+
+                let msg;
+                try { msg = JSON.parse(event.data); } catch { return; }
+
+                if (msg.event === 'registered') {
+                    terminalLog('Frontend registrado en el servidor', 'text-[#4ade80]');
+                    updateServerInfo(msg);
+                    if (msg.carroOnline) {
+                        carroOnline = true;
+                        setConnectionStatus('connected');
+                        keyHint.textContent = `Carro ${msg.carroNombre || ''} en línea`;
+                        terminalLog(`🚗 Carro conectado: ${msg.carroNombre || ''}`, 'text-[#4ade80]');
+                        if (videoOn) showCamPlaceholder('Esperando video...');
+                    } else if (msg.arduinoOnline) {
+                        setConnectionStatus('connected');
+                        keyHint.textContent = 'Arduino en línea';
+                        terminalLog('🤖 Arduino conectado', 'text-[#4ade80]');
+                    } else {
+                        carroOnline = false;
+                        setConnectionStatus('waiting');
+                        keyHint.textContent = 'Esperando carro o Arduino...';
+                        terminalLog('Esperando dispositivos...', 'text-[#fbbf24]');
+                        showCamPlaceholder('Carro no conectado');
+                    }
+                } else if (msg.event === 'carro_connected') {
+                    carroOnline = true;
+                    setConnectionStatus('connected');
+                    keyHint.textContent = `Carro ${msg.nombre || ''} en línea`;
+                    terminalLog(`🚗 Carro conectado: ${msg.nombre || ''}`, 'text-[#4ade80]');
+                    if (videoOn) showCamPlaceholder('Esperando video...');
+                } else if (msg.event === 'carro_disconnected') {
+                    carroOnline = false;
+                    setConnectionStatus('waiting');
+                    keyHint.textContent = 'Carro desconectado — esperando...';
+                    terminalLog('🚗 Carro desconectado', 'text-[#f87171]');
+                    showCamPlaceholder('Carro no conectado');
+                } else if (msg.event === 'arduino_connected') {
+                    terminalLog('🤖 Arduino conectado', 'text-[#4ade80]');
+                } else if (msg.event === 'arduino_disconnected') {
+                    terminalLog('🔌 Arduino desconectado', 'text-[#f87171]');
+                } else if (msg.event === 'arduino_msg') {
+                    terminalLog(`📥 Arduino: ${msg.data}`, 'text-[#c7c6c6]');
+                } else if (msg.event === 'sent_cmd') {
+                    terminalLog(
+                        `🚗 ${msg.delivered ? '✅' : '❌'} "${msg.data}"`,
+                        msg.delivered ? 'text-[#4ade80]' : 'text-[#f87171]',
+                    );
+                } else if (msg.event === 'server_info') {
+                    updateServerInfo(msg);
+                } else if (msg.event === 'sent') {
+                    showDelivery(msg.delivered, msg.key);
+                    if (!msg.delivered) {
+                        terminalLog(`⚠️ No se pudo entregar "${msg.key}"`, 'text-[#f87171]');
+                    }
+                } else if (msg.event === 'carro_msg') {
+                    terminalLog(`📥 Carro: ${msg.data}`, 'text-[#c7c6c6]');
+                } else if (msg.event === 'error') {
+                    terminalLog(`ERROR: ${msg.message}`, 'text-[#f87171]');
+                    showDelivery(false, '');
+                }
+            };
+
+            ws.onclose = () => {
+                wsConnected = false;
+                carroOnline = false;
+                setConnectionStatus('disconnected');
+                keyHint.textContent = 'Desconectado — reintentando...';
+                terminalLog('WS desconectado — reintentando en 3s...', 'text-[#f87171]');
+                showCamPlaceholder('Sin conexión');
+                setTimeout(connectWS, 3000);
+            };
+
+            ws.onerror = () => {
+                terminalLog('Error de conexión WebSocket', 'text-[#f87171]');
+            };
+        }
+
+        // --- Tabs ---
+        let activeTab = 'carro';
+        function switchTab(tab) {
+            if (tab !== 'carro' && tab !== 'arduino') return; // ignorar clicks no válidos
+            if (tab === activeTab) return;
+            activeTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.toggle('tab-active', b.dataset.tab === tab);
+            });
+            const carroEl = document.getElementById('tab-carro');
+            const arduinoEl = document.getElementById('tab-arduino');
+            carroEl.classList.toggle('hidden', tab !== 'carro');
+            arduinoEl.classList.toggle('hidden', tab !== 'arduino');
+            // Animación de entrada del tab activo
+            const activo = tab === 'carro' ? carroEl : arduinoEl;
+            Motion.animate(activo, { opacity: [0, 1], y: [14, 0] }, { duration: 0.3, easing: [0.2, 0.65, 0.4, 1] });
+        }
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+
+        // --- Keyboard listener (teclado físico según tab activo) ---
+        document.addEventListener('keydown', (e) => {
+            // Ignorar si el foco está en un input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            const key = e.key;
+
+            // En el tab Carro: flechas controlan el carro
+            if (activeTab === 'carro') {
+                if (key === 'ArrowUp') { e.preventDefault(); sendCarCmd('adelante'); return; }
+                if (key === 'ArrowDown') { e.preventDefault(); sendCarCmd('atras'); return; }
+                if (key === 'ArrowLeft') { e.preventDefault(); sendCarCmd('izquierda'); return; }
+                if (key === 'ArrowRight') { e.preventDefault(); sendCarCmd('derecha'); return; }
+                if (key === ' ') { e.preventDefault(); sendCarCmd('parar'); return; }
+                return;
+            }
+
+            // En el tab Arduino: teclas imprimibles → Arduino
+            if (key.length === 1) {
+                e.preventDefault();
+                sendKey(key.toLowerCase());
+            } else if (key === ' ') {
+                e.preventDefault();
+                sendKey(' ');
+            } else if (key === 'Backspace') {
+                e.preventDefault();
+                sendKey('\b');
+            } else if (key === 'Enter') {
+                e.preventDefault();
+                sendKey('\n');
+            } else if (key === 'Tab') {
+                e.preventDefault();
+                sendKey('\t');
+            }
+        });
+
+        // --- Carro: enviar comando ---
+        function sendCarCmd(cmd, val) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                terminalLog('WS no conectado', 'text-[#f87171]');
+                return;
+            }
+            const msg = val !== undefined
+                ? JSON.stringify({ cmd, val })
+                : JSON.stringify({ cmd });
+            ws.send(msg);
+            terminalLog(`🚗 TX: ${msg}`, 'text-[#fb923c]');
+        }
+
+        // --- Carro: D-pad ---
+        document.querySelectorAll('.car-btn').forEach(btn => {
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                btn.classList.add('is-active');
+                Motion.animate(btn, { scale: [1, 0.88, 1] }, { duration: 0.2 });
+                sendCarCmd(btn.dataset.cmd);
+            });
+            btn.addEventListener('mouseup', () => btn.classList.remove('is-active'));
+            btn.addEventListener('mouseleave', () => btn.classList.remove('is-active'));
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                btn.classList.add('is-active');
+                Motion.animate(btn, { scale: [1, 0.88, 1] }, { duration: 0.2 });
+                sendCarCmd(btn.dataset.cmd);
+            });
+            btn.addEventListener('touchend', () => btn.classList.remove('is-active'));
+        });
+
+        // --- Carro: sliders (con debounce 150ms) ---
+        let sliderTimer = null;
+        speedSlider.addEventListener('input', () => {
+            speedVal.textContent = speedSlider.value;
+            clearTimeout(sliderTimer);
+            sliderTimer = setTimeout(() => sendCarCmd('velocidad', parseInt(speedSlider.value)), 150);
+        });
+        lightSlider.addEventListener('input', () => {
+            lightVal.textContent = lightSlider.value;
+            clearTimeout(sliderTimer);
+            sliderTimer = setTimeout(() => sendCarCmd('luz', parseInt(lightSlider.value)), 150);
+        });
+
+        // --- Carro: toggle de cámara ---
+        videoToggle.addEventListener('click', (e) => {
+            e.stopPropagation(); // no interferir con los tabs
+            videoOn = !videoOn;
+            sendCarCmd('video', videoOn ? 1 : 0);
+            videoToggle.textContent = videoOn ? '📷 Apagar cámara' : '📷 Encender cámara';
+            videoToggle.classList.toggle('cam-toggle-on', videoOn);
+            if (videoOn) {
+                showCamPlaceholder('Conectando cámara...');
+                terminalLog('📹 Video ON', 'text-[#4ade80]');
+            } else {
+                showCamPlaceholder('Cámara apagada');
+                terminalLog('📹 Video OFF', 'text-[#f87171]');
+            }
+        });
+
+        // --- Teclado visual: listeners para todas las teclas ---
+        document.querySelectorAll('.keycap').forEach(keyEl => {
+            const rawKey = keyEl.dataset.key;
+            if (!rawKey || SKIP_KEYS.includes(rawKey)) return;
+
+            // Mapear nombres especiales a caracteres reales
+            const key = rawKey === 'tab' ? '\t' : rawKey;
+
+            keyEl.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                keyEl.classList.add('is-active');
+                sendKey(key);
+            });
+            keyEl.addEventListener('mouseup', () => keyEl.classList.remove('is-active'));
+            keyEl.addEventListener('mouseleave', () => keyEl.classList.remove('is-active'));
+
+            // Soporte táctil
+            keyEl.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                keyEl.classList.add('is-active');
+                sendKey(key);
+            });
+            keyEl.addEventListener('touchend', () => keyEl.classList.remove('is-active'));
+        });
+
+        // --- Init ---
+        setConnectionStatus('disconnected');
+        connectWS();
+
+        // --- Animación de entrada (stagger) ---
+        Motion.animate('#key-panel', { opacity: [0, 1], y: [20, 0] }, { duration: 0.45, easing: [0.2, 0.65, 0.4, 1] });
+        Motion.animate('#tab-carro', { opacity: [0, 1], y: [16, 0] }, { duration: 0.45, delay: 0.12, easing: [0.2, 0.65, 0.4, 1] });
+        document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+            Motion.animate(btn, { opacity: [0, 1], scale: [0.8, 1] }, { duration: 0.3, delay: 0.15 + i * 0.08 });
+        });
+
+        // --- Terminal resize (drag handle) ---
+        const bottomRow = document.getElementById('bottom-row');
+        const resizeHandle = document.getElementById('resize-handle');
+        let isResizing = false;
+        let startY = 0;
+        let startHeight = 0;
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startY = e.clientY;
+            startHeight = bottomRow.offsetHeight;
+            document.body.style.cursor = 'ns-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const delta = startY - e.clientY;
+            const newHeight = Math.min(Math.max(startHeight + delta, 120), window.innerHeight * 0.6);
+            bottomRow.style.height = newHeight + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!isResizing) return;
+            isResizing = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        });
+
+        // Soporte táctil
+        resizeHandle.addEventListener('touchstart', (e) => {
+            isResizing = true;
+            startY = e.touches[0].clientY;
+            startHeight = bottomRow.offsetHeight;
+            e.preventDefault();
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isResizing) return;
+            const delta = startY - e.touches[0].clientY;
+            const newHeight = Math.min(Math.max(startHeight + delta, 120), window.innerHeight * 0.6);
+            bottomRow.style.height = newHeight + 'px';
+        });
+
+        document.addEventListener('touchend', () => {
+            isResizing = false;
+        });
+    })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Dependencias
+node_modules/
+
+# Build output (se genera en el container)
+dist/
+
+# Archivos de desarrollo
+*.log
+.git/
+.gitignore
+.vscode/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

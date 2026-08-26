@@ -1,0 +1,11 @@
+services:
+  arduino-server:
+    build: .
+    container_name: arduino-leds-server
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    environment:
+      - PORT=${PORT:-3000}
+      - PUBLIC_URL=${PUBLIC_URL:-http://localhost:3000}
+      - NODE_ENV=production
+    restart: unless-stopped
