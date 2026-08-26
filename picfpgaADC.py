@@ -20,6 +20,7 @@ Dependencias:
 
 import json
 import queue
+import socket
 import threading
 import time
 
@@ -28,7 +29,7 @@ import websocket
 
 PUERTO = "COM10"                # Puerto COM asignado al CH340
 BAUDIOS = 115200
-WS_URL = "ws://localhost:3000"  # Producción: "wss://arduino.libardo-apps.es"
+WS_URL = "wss://arduino.libardo-apps.es"  # Producción: "wss://arduino.libardo-apps.es"
 
 # "binario" → reenvía la trama original de 2 bytes (recomendado)
 # "json"    → envía {"canales":[v0,v1,v2,v3]} cada ciclo completo (canal 3)
@@ -61,22 +62,29 @@ def hilo_websocket():
             ws = websocket.WebSocket()
             ws.connect(WS_URL, timeout=10)
             ws.send("arduino")   # registro obligatorio del protocolo
-            ws.settimeout(0.25)
+            ws.settimeout(0.02)  # recv sin bloqueos largos → mínima latencia
+            # Desactiva Nagle: evita ~40 ms extra por paquete TCP pequeño
+            try:
+                ws.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            except Exception:
+                pass
             print(f"[WS] Conectado a {WS_URL} y registrado como 'arduino'")
 
             while True:
-                # 1) Enviar todos los mensajes pendientes
+                # 1) Enviar la trama en cuanto se encola
+                #    (espera máx. 50 ms → sin ráfagas ni latencia acumulada)
                 try:
-                    while True:
-                        msg = cola_ws.get_nowait()
-                        if isinstance(msg, bytes):
-                            ws.send(msg, websocket.ABNF.OPCODE_BINARY)
-                        else:
-                            ws.send(msg)
+                    msg = cola_ws.get(timeout=0.05)
+                    if isinstance(msg, bytes):
+                        ws.send(msg, websocket.ABNF.OPCODE_BINARY)
+                    else:
+                        ws.send(msg)
+                    continue
                 except queue.Empty:
                     pass
 
                 # 2) Recibir comandos del frontend sin bloquear
+                #    (timeout de 20 ms → no retrasa el envío de datos)
                 try:
                     cmd = ws.recv()
                     if cmd:
