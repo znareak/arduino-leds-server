@@ -12,6 +12,7 @@
 //  │ PROTOCOLO SERIAL (una línea por comando, terminada en \n)            │
 //  ├──────────────────────────────────────────────────────────────────────┤
 //  │ A,<coxa>,<femur>,<tibia>   → modo ESTÁTICO: 3 ángulos directos       │
+//  │ <coxa>,<femur>,<tibia>      → ídem, sin prefijo (motorhexapod)       │
 //  │ {"coxa":90,"femur":45,"tibia":120} → modo ESTÁTICO: JSON             │
 //  │ G,<gesto>                  → modo DINÁMICO: secuencia de movimiento  │
 //  │     gesto ∈ saludar | estirar | punito                               │
@@ -200,6 +201,7 @@ void actualizarGesto() {
 
 void actualizarMovimiento() {
   unsigned long ahora = millis();
+  if (ultimoTick == 0) { ultimoTick = ahora; return; }  // 1ª pasada: calibrar reloj
   if (ahora - ultimoTick < TICK_MS) return;
   float dt = (ahora - ultimoTick) / 1000.0f;
   ultimoTick = ahora;
@@ -259,12 +261,19 @@ void ejecutarComando(String cmd) {
     return;
   }
 
-  // ¿Ángulos estáticos CSV: "A,90,45,120"?
-  if (cmd.startsWith("A,")) {
-    char buf[64];
-    cmd.toCharArray(buf, sizeof(buf));
-    float c, f, t;
-    if (sscanf(buf, "A,%f,%f,%f", &c, &f, &t) == 3) {
+  // ¿Ángulos estáticos CSV: "A,90,45,120" o directo "90,45,120"?
+  // Parseo manual con indexOf/substring: sscanf con %f NO es fiable en AVR
+  // (avr-libc no enlaza el soporte de floats en scanf por defecto), por eso
+  // el firmware motorhexapod.ino (sin sscanf) sí funciona y este no.
+  {
+    String angLine = cmd;
+    if (angLine.startsWith("A,")) angLine = angLine.substring(2);  // quitar prefijo
+    int c1 = angLine.indexOf(',');
+    int c2 = angLine.indexOf(',', c1 + 1);
+    if (c1 > 0 && c2 > c1 + 1) {
+      float c = angLine.substring(0, c1).toFloat();
+      float f = angLine.substring(c1 + 1, c2).toFloat();
+      float t = angLine.substring(c2 + 1).toFloat();
       gestoActivo = false;
       gestoPuntos = nullptr;
       fijarObjetivo(c, f, t);
@@ -273,7 +282,7 @@ void ejecutarComando(String cmd) {
       Serial.print(angObjetivo[1], 1); Serial.print(',');
       Serial.println(angObjetivo[2], 1);
     } else {
-      Serial.println(F("ERR formato: A,<coxa>,<femur>,<tibia>"));
+      Serial.println(F("ERR formato: <coxa>,<femur>,<tibia> (o A,<coxa>,<femur>,<tibia>)"));
     }
     return;
   }

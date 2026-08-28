@@ -309,15 +309,23 @@ class PataSerial:
 
     # ── Comandos de alto nivel ─────────────────────────────────────────────
     def estatico(self, coxa, femur, tibia):
-        return self.enviar(f"A,{coxa:.1f},{femur:.1f},{tibia:.1f}")
+        # Formato plano "c,f,t" (sin prefijo): es el protocolo del firmware
+        # simple motorhexapod.ino (el que SÍ funciona con el robot físico) y
+        # también lo acepta pata_hexapodo.ino.
+        return self.enviar(f"{coxa:.1f},{femur:.1f},{tibia:.1f}")
 
     def gesto_firmware(self, nombre):
+        # Solo lo entiende pata_hexapodo.ino (motorhexapod.ino ignora "G,..").
+        # El flujo normal usa siempre IK en Python (aplicar_gesto).
         return self.enviar(f"G,{nombre}")
 
     def neutro(self):
-        return self.enviar("N")
+        # Neutro en formato plano: compatible con ambos firmwares.
+        c, f, t = NEUTRO_SERVO
+        return self.enviar(f"{c:.1f},{f:.1f},{t:.1f}")
 
     def velocidad(self, grados_seg):
+        # Solo lo usa pata_hexapodo.ino; motorhexapod.ino lo ignora sin romperse.
         return self.enviar(f"V,{grados_seg:.0f}")
 
     def estado(self):
@@ -616,14 +624,9 @@ def menu(ctrl, leg):
                 if nombre not in ("saludar", "estirar", "punito"):
                     print("[!] Gesto desconocido")
                     continue
-                if input("  ¿IK en Python? (s/n, Enter=s): ").strip().lower() in ("s", ""):
-                    aplicar_gesto(ctrl, leg, nombre)
-                else:
-                    with lock_serial:
-                        resp = ctrl.gesto_firmware(nombre)
-                    estado_pata["gesto"] = nombre
-                    reportar_pata()
-                    print("  ←", " | ".join(resp) if resp else "(sin respuesta)")
+                # Siempre IK en Python con waypoints en formato plano "c,f,t":
+                # funciona tanto con motorhexapod.ino como con pata_hexapodo.ino
+                aplicar_gesto(ctrl, leg, nombre)
 
             elif op == "3":
                 aplicar_neutro(ctrl)
