@@ -419,6 +419,35 @@ def aplicar_velocidad(ctrl, grados_seg):
         return ctrl.velocidad(grados_seg)
 
 
+def aplicar_test(ctrl, intervalo=0.6):
+    """TEST de servos: mueve cada uno por turno (coxa → fémur → tibia).
+
+    Usa secuencias planas "c,f,t", por lo que funciona con motorhexapod.ino
+    Y con pata_hexapodo.ino. Sirve para detectar servos/pines que no
+    responden: si uno no se mueve, revisa su cable, pin y alimentación.
+    """
+    secuencia = [
+        ("coxa  60°", (60.0, 90.0, 90.0)),
+        ("coxa 120°", (120.0, 90.0, 90.0)),
+        ("femur 45°", (90.0, 45.0, 90.0)),
+        ("femur135°", (90.0, 135.0, 90.0)),
+        ("tibia 45°", (90.0, 90.0, 45.0)),
+        ("tibia135°", (90.0, 90.0, 135.0)),
+        ("neutro", (90.0, 90.0, 90.0)),
+    ]
+    print("[→] TEST de servos (uno a uno)…")
+    for nombre, (c, f, t) in secuencia:
+        print(f"  [TEST] {nombre:<9} → {c:.0f},{f:.0f},{t:.0f}")
+        with lock_serial:
+            ctrl.estatico(c, f, t)
+        estado_pata.update(coxa=c, femur=f, tibia=t, gesto="test")
+        reportar_pata()
+        time.sleep(intervalo)
+    estado_pata["gesto"] = None
+    reportar_pata()
+    print("[✓] Test completado. Si algún servo no se movió: revisa pin, cable y alimentación.")
+
+
 def procesar_mensaje_ws(raw, ctrl, leg):
     """Procesa un comando llegado del servidor (hilo WS).
 
@@ -614,7 +643,8 @@ def menu(ctrl, leg):
         print("  3. Posición neutra (reposo)")
         print("  4. Consultar estado del firmware")
         print("  5. Cambiar velocidad de interpolación")
-        print("  6. Salir")
+        print("  6. TEST de servos (coxa → fémur → tibia)")
+        print("  7. Salir")
         op = input("\nOpción: ").strip()
 
         try:
@@ -646,6 +676,9 @@ def menu(ctrl, leg):
                 print("  ←", " | ".join(resp) if resp else "(sin respuesta)")
 
             elif op == "6":
+                aplicar_test(ctrl)
+
+            elif op == "7":
                 break
 
             else:

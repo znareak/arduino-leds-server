@@ -19,6 +19,7 @@
 //  │ N                          → volver a posición neutra (reposo)       │
 //  │ V,<grados_por_segundo>     → velocidad de interpolación (5..600)     │
 //  │ ?                          → estado actual (responde POS,c,f,t)      │
+//  │ T                          → TEST: mueve cada servo por turno       │
 //  │ H                          → ayuda                                   │
 //  ├──────────────────────────────────────────────────────────────────────┤
 //  │ Respuestas: OK <comando> · POS,c,f,t · DONE gesto · WARN/ERR ...     │
@@ -38,6 +39,10 @@
 const uint8_t PIN_COXA  = 9;   // servo de rotación horizontal
 const uint8_t PIN_FEMUR = 10;  // servo "hombro" vertical
 const uint8_t PIN_TIBIA = 11;  // servo "rodilla"
+//  ⚠️ DIAGNÓSTICO: si el coxa no se mueve y su pin NO emite pulsos de ~50 Hz
+//  (con un analizador lógico verás 1-2 ms de pulso cada 20 ms), el pin 9
+//  puede estar dañado. Prueba a cambiarlo a otro pin PWM libre (ej. 6, 5, 3)
+//  y conecta el servo ahí. Servo.h funciona en cualquier pin digital 2-13.
 
 // ── Límites de seguridad por servo (grados) ────────────────────────────────
 // Ajústalos a los límites MECÁNICOS reales de tu pata para no forzarla.
@@ -92,6 +97,17 @@ const PuntoGesto GESTO_ESTIRAR[] = {
 const PuntoGesto GESTO_PUNITO[] = {
   { { 90,  30,  50 }, 800 },
   { { 90,  90,  90 }, 400 },
+};
+
+// "test": mueve CADA servo por turno para verificar cableado y pines.
+const PuntoGesto GESTO_TEST[] = {
+  { { 60,  90,  90 }, 700 },  // coxa a 60°
+  { {120,  90,  90 }, 700 },  // coxa a 120°
+  { { 90,  45,  90 }, 700 },  // fémur a 45°
+  { { 90, 135,  90 }, 700 },  // fémur a 135°
+  { { 90,  90,  45 }, 700 },  // tibia a 45°
+  { { 90,  90, 135 }, 700 },  // tibia a 135°
+  { { 90,  90,  90 }, 700 },  // neutro
 };
 
 const PuntoGesto* gestoPuntos = nullptr;
@@ -154,8 +170,10 @@ void iniciarGesto(const String& nombre) {
     pts = GESTO_ESTIRAR; n = sizeof(GESTO_ESTIRAR) / sizeof(GESTO_ESTIRAR[0]);
   } else if (nombre == "punito") {
     pts = GESTO_PUNITO;  n = sizeof(GESTO_PUNITO) / sizeof(GESTO_PUNITO[0]);
+  } else if (nombre == "test") {
+    pts = GESTO_TEST;    n = sizeof(GESTO_TEST) / sizeof(GESTO_TEST[0]);
   } else {
-    Serial.println(F("ERR gesto desconocido (usa: saludar | estirar | punito)"));
+    Serial.println(F("ERR gesto desconocido (usa: saludar | estirar | punito | test)"));
     return;
   }
 
@@ -230,6 +248,9 @@ void ejecutarComando(String cmd) {
   if (cmd == "?") { enviarEstado(); return; }
   if (cmd == "H") { enviarAyuda(); return; }
 
+  // ¿Test de servos individual (diagnóstico de pines)?
+  if (cmd == "T") { iniciarGesto("test"); return; }
+
   // ¿Posición neutra?
   if (cmd == "N") {
     gestoActivo = false;
@@ -261,6 +282,23 @@ void ejecutarComando(String cmd) {
     return;
   }
 
+  // ¿Ángulos estáticos JSON: {"coxa":90,"femur":45,"tibia":120}"?
+  // (Debe ir ANTES del CSV: un JSON con comas lo capturaría el CSV)
+  if (cmd.startsWith("{")) {
+    float c = extraerJSON(cmd, "coxa");
+    float f = extraerJSON(cmd, "femur");
+    float t = extraerJSON(cmd, "tibia");
+    if (!isnan(c) && !isnan(f) && !isnan(t)) {
+      gestoActivo = false;
+      gestoPuntos = nullptr;
+      fijarObjetivo(c, f, t);
+      Serial.println(F("OK JSON"));
+    } else {
+      Serial.println(F("ERR JSON: usa {\"coxa\":90,\"femur\":45,\"tibia\":120}"));
+    }
+    return;
+  }
+
   // ¿Ángulos estáticos CSV: "A,90,45,120" o directo "90,45,120"?
   // Parseo manual con indexOf/substring: sscanf con %f NO es fiable en AVR
   // (avr-libc no enlaza el soporte de floats en scanf por defecto), por eso
@@ -283,22 +321,6 @@ void ejecutarComando(String cmd) {
       Serial.println(angObjetivo[2], 1);
     } else {
       Serial.println(F("ERR formato: <coxa>,<femur>,<tibia> (o A,<coxa>,<femur>,<tibia>)"));
-    }
-    return;
-  }
-
-  // ¿Ángulos estáticos JSON: {"coxa":90,"femur":45,"tibia":120}"?
-  if (cmd.startsWith("{")) {
-    float c = extraerJSON(cmd, "coxa");
-    float f = extraerJSON(cmd, "femur");
-    float t = extraerJSON(cmd, "tibia");
-    if (!isnan(c) && !isnan(f) && !isnan(t)) {
-      gestoActivo = false;
-      gestoPuntos = nullptr;
-      fijarObjetivo(c, f, t);
-      Serial.println(F("OK JSON"));
-    } else {
-      Serial.println(F("ERR JSON: usa {\"coxa\":90,\"femur\":45,\"tibia\":120}"));
     }
     return;
   }
