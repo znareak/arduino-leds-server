@@ -78,6 +78,22 @@ let lastArduinoFrame = 0; // timestamp de la última trama recibida del Arduino
 // onda: 0-3 (2 bits), frecuencia: 0-63 (6 bits)
 const generador = { onda: 0, frecuencia: 0, actualizado: 0 };
 
+// Pata hexápodo 3-DOF: estado actual de los 3 servos (grados, 0-180)
+// El estado canónico lo reporta el puente Python (control_pata.py) como
+// {"pata":{"coxa":..,"femur":..,"tibia":..,"gesto":..}}
+const pata = {
+  coxa: 90,
+  femur: 90,
+  tibia: 90,
+  gesto: null as string | null,
+  actualizado: 0,
+};
+
+// Recorta un ángulo de servo al rango válido (0-180)
+function clampAngulo(v: number): number {
+  return Math.max(0, Math.min(180, Math.round(v)));
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -99,6 +115,12 @@ function getServerInfo() {
     })),
     frontendsOnline: frontendClients.size,
     generador: { onda: generador.onda, frecuencia: generador.frecuencia },
+    pata: {
+      coxa: pata.coxa,
+      femur: pata.femur,
+      tibia: pata.tibia,
+      gesto: pata.gesto,
+    },
   });
 }
 
@@ -350,6 +372,12 @@ wss.on("connection", (ws: WebSocket, req) => {
             wsUrl: WS_URL,
             port: PORT,
             generador: { onda: generador.onda, frecuencia: generador.frecuencia },
+            pata: {
+              coxa: pata.coxa,
+              femur: pata.femur,
+              tibia: pata.tibia,
+              gesto: pata.gesto,
+            },
           }),
         );
         broadcastServerInfo();
@@ -372,6 +400,33 @@ wss.on("connection", (ws: WebSocket, req) => {
     // además, reenviar el mensaje crudo a los frontends (para el log)
     if (clientType === "arduino") {
       lastArduinoFrame = Date.now();
+
+      // ¿Estado de la pata? {"pata":{"coxa":..,"femur":..,"tibia":..,"gesto":..}}
+      // Lo envía control_pata.py; se guarda y se reenvía a los frontends
+      try {
+        const json = JSON.parse(text);
+        if (json && typeof json === "object" && json.pata && typeof json.pata === "object") {
+          const p = json.pata;
+          if (Number.isFinite(p.coxa)) pata.coxa = clampAngulo(p.coxa);
+          if (Number.isFinite(p.femur)) pata.femur = clampAngulo(p.femur);
+          if (Number.isFinite(p.tibia)) pata.tibia = clampAngulo(p.tibia);
+          pata.gesto = typeof p.gesto === "string" ? p.gesto : null;
+          pata.actualizado = Date.now();
+          broadcastToFrontends(
+            JSON.stringify({
+              event: "pata",
+              coxa: pata.coxa,
+              femur: pata.femur,
+              tibia: pata.tibia,
+              gesto: pata.gesto,
+            }),
+          );
+          return;
+        }
+      } catch {
+        // no es JSON con estado de pata → seguir con sensores
+      }
+
       console.log(`📥 Arduino: ${text}`);
       const parsed = parseSensores(text);
       if (parsed) {
@@ -399,6 +454,81 @@ wss.on("connection", (ws: WebSocket, req) => {
     if (clientType === "frontend") {
       try {
         const json = JSON.parse(text);
+
+        // ¿Comando para la pata hexápodo? (IK la calcula control_pata.py)
+        //   {cmd:"pata", modo:"estatico", coxa, femur, tibia}
+        //   {cmd:"pata", modo:"gesto", gesto:"saludar"|"estirar"|"punito"}
+        //   {cmd:"pata", modo:"neutro"}
+        //   {cmd:"pata", modo:"velocidad", velocidad: grados/seg}
+        if (json.cmd === "pata") {
+          let enviado = false;
+
+          if (json.modo === "gesto" && typeof json.gesto === "string") {
+            const gesto = json.gesto.toLowerCase();
+            enviado = sendToArduino(JSON.stringify({ cmd: "pata", modo: "gesto", gesto }));
+            console.log(`🦵 Frontend → Pata: gesto=${gesto} entregado=${enviado}`);
+            broadcastToFrontends(
+              JSON.stringify({ event: "pata_cmd", modo: "gesto", gesto, delivered: enviado }),
+            );
+          } else if (json.modo === "neutro") {
+            enviado = sendToArduino(JSON.stringify({ cmd: "pata", modo: "neutro" }));
+            broadcastToFrontends(
+              JSON.stringify({ event: "pata_cmd", modo: "neutro", delivered: enviado }),
+            );
+          } else if (json.modo === "velocidad" && Number.isFinite(json.velocidad)) {
+            const velocidad = Math.max(5, Math.min(600, Math.round(json.velocidad)));
+            enviado = sendToArduino(JSON.stringify({ cmd: "pata", modo: "velocidad", velocidad }));
+            broadcastToFrontends(
+              JSON.stringify({
+                event: "pata_cmd",
+                modo: "velocidad",
+                velocidad,
+                delivered: enviado,
+              }),
+            );
+          } else if (
+            Number.isFinite(json.coxa) ||
+            Number.isFinite(json.femur) ||
+            Number.isFinite(json.tibia)
+          ) {
+            const coxa = Number.isFinite(json.coxa) ? clampAngulo(json.coxa) : pata.coxa;
+            const femur = Number.isFinite(json.femur) ? clampAngulo(json.femur) : pata.femur;
+            const tibia = Number.isFinite(json.tibia) ? clampAngulo(json.tibia) : pata.tibia;
+            enviado = sendToArduino(
+              JSON.stringify({ cmd: "pata", modo: "estatico", coxa, femur, tibia }),
+            );
+            console.log(
+              `🦵 Frontend → Pata: coxa=${coxa} femur=${femur} tibia=${tibia} entregado=${enviado}`,
+            );
+            // Actualización optimista para animar todos los frontends al instante
+            pata.coxa = coxa;
+            pata.femur = femur;
+            pata.tibia = tibia;
+            pata.gesto = null;
+            pata.actualizado = Date.now();
+            broadcastToFrontends(
+              JSON.stringify({
+                event: "pata_cmd",
+                modo: "estatico",
+                coxa,
+                femur,
+                tibia,
+                delivered: enviado,
+              }),
+            );
+          } else {
+            ws.send(
+              JSON.stringify({
+                event: "error",
+                message: "pata: usa modo estatico/gesto/neutro/velocidad",
+              }),
+            );
+            return;
+          }
+
+          ws.send(JSON.stringify({ event: "sent_cmd", data: "pata", delivered: enviado }));
+          return;
+        }
 
         // ¿Comando para el generador de ondas?
         if (json.cmd === "onda") {
