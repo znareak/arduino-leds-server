@@ -689,7 +689,7 @@
                         </div>
                         <div class="flex items-center justify-center gap-sm px-md py-sm font-data-sm text-data-sm text-outline/80 text-center border border-outline-variant/20 rounded-xl">
                             <span class="material-symbols-outlined text-[13px]">info</span>
-                            <span>La IK (L1=40, L2=80, L3=100 mm) la calcula <span class="text-on-surface-variant">control_pata.py</span> en el PC; el modelo 3D refleja los ángulos reales de los servos.</span>
+                            <span>La IK (L1=40, L2=80, L3=100 mm) la calcula <span class="text-on-surface-variant">control_pata.py</span> en el PC. Montaje físico: coxa y fémur invertidos (el modelo 3D ya los corrige); tibia normal.</span>
                         </div>
                     </div>
                 </div>
@@ -1103,6 +1103,10 @@
 
         // FK del diagrama 3-DOF: (coxa, femur, tibia) → ángulos de los segmentos
         function pataPoseAngles(c, f, t) {
+            // Montaje físico: coxa y fémur van montados al revés, por lo que su
+            // ángulo del diagrama es 180° − ángulo del servo. La tibia va normal.
+            c = 180 - c;
+            f = 180 - f;
             const RAD = Math.PI / 180;
             const femur = f * RAD;
             const theta = (180 - t) * RAD;                       // theta = 180 − tibia

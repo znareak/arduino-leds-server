@@ -10,7 +10,7 @@ Arduino (Uno/Nano) con conversor CH340 a 115200 bps.
 La CINEMÁTICA INVERSA (IK) se calcula AQUÍ, en Python, usando las
 fórmulas del diagrama 3-DOF y las longitudes reales de los segmentos
 (L1 coxa, L2 fémur, L3 tibia), configurables abajo. El resultado son
-ángulos de servo que se envían al firmware como "A,coxa,femur,tibia".
+ángulos de servo que se envían al firmware como "coxa,femur,tibia".
 
 Fórmulas del diagrama (coordenadas: x adelante, y arriba, z lateral):
 
@@ -62,8 +62,12 @@ L_FEMUR = 80.0   # mm — longitud del fémur (L2)
 L_TIBIA = 100.0  # mm — longitud de la tibia (L3)
 
 # Mapeo ángulo del diagrama → ángulo de servo: servo = offset + dir * ang
-OFFSET    = (90.0, 0.0, 0.0)  # coxa neutra a 90°; fémur/tibia según diagrama
-DIRECCION = (1, 1, 1)         # 1 normal, -1 para espejar un servo invertido
+# CALIBRADO AL MONTAJE REAL del robot (2026-08): coxa y fémur están montados
+# al revés (espejo: coxa → 90−gama, fémur → 180−ang); la tibia va normal.
+# Si cambias el montaje, ajusta aquí Y en los checkboxes "Espejo" de la
+# vista Pata de la web (para que el modelo 3D siga coincidiendo).
+OFFSET    = (90.0, 180.0, 0.0)  # coxa neutra a 90°; fémur espejado; tibia normal
+DIRECCION = (-1, -1, 1)         # coxa y fémur invertidos; tibia normal
 
 # Límites de seguridad por servo (grados), en orden coxa, fémur, tibia
 LIMITES_SERVO = ((0.0, 180.0), (0.0, 180.0), (0.0, 180.0))
