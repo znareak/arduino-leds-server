@@ -186,6 +186,15 @@
         animation: subtle-pulse 2s infinite;
     }
 
+    /* Pulso verde leve para LEDs online del menú */
+    @keyframes led-pulse-green {
+        0%, 100% { box-shadow: 0 0 3px rgba(74, 222, 128, 0.4); }
+        50% { box-shadow: 0 0 8px rgba(74, 222, 128, 0.7); }
+    }
+    .led-pulse-green {
+        animation: led-pulse-green 2s ease-in-out infinite;
+    }
+
     .scale-display-text {
         transform: scale(2.5);
         transform-origin: center;
@@ -833,6 +842,8 @@
             <span class="text-[10px] uppercase tracking-wider text-muted-foreground/70">Serial Output — WS Log</span>
             <span class="material-symbols-outlined text-[13px] text-muted-foreground">sync_alt</span>
         </div>
+        <!-- Degradado de desvanecido superior -->
+        <div class="pointer-events-none absolute inset-x-0 top-[30px] h-12 z-[5] bg-[linear-gradient(to_bottom,#0e0e10_0%,rgba(14,14,16,0)_100%)]" aria-hidden="true"></div>
         <!-- Contenido scrolleable -->
         <div class="flex-1 overflow-y-auto overflow-x-hidden p-md" id="terminal-scroll">
             <div class="flex flex-col gap-1 opacity-70" id="terminal-lines">
@@ -1023,7 +1034,7 @@
 
         function setSideLed(el, online) {
             el.className = online
-                ? 'w-2 h-2 rounded-full bg-[#4ade80] glow-active'
+                ? 'w-2 h-2 rounded-full bg-[#4ade80] led-pulse-green'
                 : 'w-2 h-2 rounded-full bg-[#f87171]';
         }
 
